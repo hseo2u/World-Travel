@@ -3,9 +3,16 @@ import { useTrip } from '../lib/useTrip'
 import { dayDate, daysBetween, formatShort, todayIso } from '../lib/dates'
 import { TRANSPORT_ICON, TRANSPORT_LABEL } from '../lib/route'
 import DayRoute from '../components/DayRoute'
+import SpendSummaryCard from '../components/SpendSummaryCard'
+import { summarize } from '../lib/money'
+import { dueSoon, KIND_ICON } from '../lib/bookings'
+import { useBookingSync, useBookings, useMoney } from '../lib/useData'
 
 export default function HomePage() {
   const { trip, days, loading } = useTrip()
+  const { expenses } = useMoney()
+  const bookings = useBookings()
+  useBookingSync(trip, days)
   if (loading || !trip) return null
 
   const today = todayIso()
@@ -14,6 +21,7 @@ export default function HomePage() {
   const focus = days.find((d) => d.order === currentOrder) ?? days[0]
   const nextMove = days.find((d) => d.order >= currentOrder && d.cities.length > 1)
   const countries = new Set(days.map((d) => d.country).filter(Boolean))
+  const due = dueSoon(bookings, today, 14)
 
   return (
     <div className="page">
@@ -66,6 +74,25 @@ export default function HomePage() {
               )}
             </Link>
           )}
+          {due.length > 0 && (
+            <Link to="/book" className="card link-card">
+              <div className="eyebrow">예약 챙기기 · 2주 안에 마감 {due.length}건</div>
+              <ul className="due-list">
+                {due.slice(0, 4).map((b) => (
+                  <li key={b.id}>
+                    <span>{KIND_ICON[b.kind]} {b.title}</span>
+                    <span className={b.dueDate! < today ? 'badge danger' : 'badge'}>
+                      {b.dueDate! < today ? '마감 지남' : formatShort(b.dueDate!)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {due.length > 4 && <div className="muted">외 {due.length - 4}건</div>}
+            </Link>
+          )}
+          <Link to="/money" className="link-card">
+            <SpendSummaryCard trip={trip} summary={summarize(trip, expenses, today, days.length)} compact />
+          </Link>
           <Link to="/ai" className="card link-card ai-card">
             <div className="eyebrow">AI에게 물어보기</div>
             <div>계획 점검, 미리 할 예약, 이동 방법을 물어볼 질문을 만들어 복사해줘요.</div>

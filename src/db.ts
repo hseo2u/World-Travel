@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Day, Place, Trip } from './types'
+import type { Booking, Day, Exchange, Expense, PayMethod, Place, Rate, Trip } from './types'
 import { SEED_TSV } from './platform/seed'
 import { parseTsv, rowsToDays } from './lib/importPlan'
 
@@ -9,12 +9,25 @@ export const db = new Dexie('world-travel') as Dexie & {
   trips: EntityTable<Trip, 'id'>
   days: EntityTable<Day, 'id'>
   places: EntityTable<Place, 'key'>
+  bookings: EntityTable<Booking, 'id'>
+  expenses: EntityTable<Expense, 'id'>
+  payMethods: EntityTable<PayMethod, 'id'>
+  exchanges: EntityTable<Exchange, 'id'>
+  rates: EntityTable<Rate, 'currency'>
 }
 
 db.version(1).stores({
   trips: 'id',
   days: 'id, tripId, [tripId+order]',
   places: 'key',
+})
+
+db.version(2).stores({
+  bookings: 'id, tripId, kind, status',
+  expenses: 'id, tripId, date',
+  payMethods: 'id',
+  exchanges: 'id, tripId, date',
+  rates: 'currency',
 })
 
 export const TRIP_ID = 'main'
