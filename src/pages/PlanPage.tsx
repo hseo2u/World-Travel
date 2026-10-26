@@ -1,5 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useTrip } from '../lib/useTrip'
 import { dayDate, formatShort, todayIso } from '../lib/dates'
 import { TRANSPORT_ICON } from '../lib/route'
@@ -12,6 +12,13 @@ export default function PlanPage() {
   const { trip, days, loading } = useTrip()
   const navigate = useNavigate()
   const [continent, setContinent] = useState('')
+  const [params] = useSearchParams()
+  const target = params.get('day')
+  const ready = !loading && days.length > 0
+  // The country badges on home open the plan at that country's first day.
+  useEffect(() => {
+    if (ready && target) document.getElementById(`day-${target}`)?.scrollIntoView({ block: 'start' })
+  }, [ready, target])
   const stopCount = useLiveQuery(async () => {
     const counts = new Map<string, number>()
     for (const st of await db.stops.where('tripId').equals(TRIP_ID).toArray()) counts.set(st.dayId, (counts.get(st.dayId) ?? 0) + 1)

@@ -92,3 +92,14 @@ export async function geocode(name: string, country: string): Promise<Place | un
   await db.places.put(place)
   return place
 }
+
+const CODE_OF: Record<string, string> = {
+  페루: 'PE', 볼리비아: 'BO', 칠레: 'CL', 아르헨티나: 'AR', 우루과이: 'UY', 브라질: 'BR', 파라과이: 'PY',
+  포르투갈: 'PT', 모로코: 'MA', 스페인: 'ES', 프랑스: 'FR', 모나코: 'MC', 영국: 'GB', 네덜란드: 'NL', 벨기에: 'BE',
+  독일: 'DE', 스위스: 'CH', 오스트리아: 'AT', 체코: 'CZ', 헝가리: 'HU', 이탈리아: 'IT', 튀르키예: 'TR', 이집트: 'EG',
+}
+
+/** Two-letter country code for the round country badges; the first letter of the name when unknown. */
+export function countryCode(country: string): string {
+  return CODE_OF[country.trim()] ?? country.trim().slice(0, 1)
+}

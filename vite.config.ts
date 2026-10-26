@@ -39,8 +39,8 @@ export default defineConfig(({ mode }) => {
           short_name: '세계여행',
           description: '세계여행 계획, 지도, 가계부, 기록',
           lang: 'ko',
-          theme_color: '#ff6b4a',
-          background_color: '#f7f5f2',
+          theme_color: '#ffffff',
+          background_color: '#ffffff',
           display: 'standalone',
           start_url: '.',
           icons: [

@@ -23,19 +23,20 @@ import EntryPage from './pages/more/EntryPage'
 import DocsPage from './pages/more/DocsPage'
 import SafetyPage from './pages/more/SafetyPage'
 import { useBookings } from './lib/useData'
+import Icon, { type IconName } from './components/Icon'
 import { dueSoon } from './lib/bookings'
 import { todayIso } from './lib/dates'
 
 // The map library is large, so it loads only when the map tab opens.
 const MapPage = lazy(() => import('./pages/MapPage'))
 
-const TABS = [
-  { to: '/', label: '홈', icon: '🏠', end: true },
-  { to: '/plan', label: '계획', icon: '🗓️' },
-  { to: '/record', label: '기록', icon: '📷' },
-  { to: '/book', label: '예약', icon: '📌' },
-  { to: '/money', label: '가계부', icon: '💳' },
-  { to: '/more', label: '기타', icon: '☰' },
+const TABS: { to: string; label: string; icon: IconName; end?: boolean }[] = [
+  { to: '/', label: '홈', icon: 'home', end: true },
+  { to: '/plan', label: '계획', icon: 'plan' },
+  { to: '/record', label: '기록', icon: 'record' },
+  { to: '/book', label: '예약', icon: 'book' },
+  { to: '/money', label: '가계부', icon: 'money' },
+  { to: '/more', label: '기타', icon: 'more' },
 ]
 
 export default function App() {
@@ -74,9 +75,13 @@ export default function App() {
         <nav className="tabbar">
           {TABS.map((t) => (
             <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
-              <span className="tab-icon">{t.icon}</span>
-              {t.to === '/book' && overdue > 0 && <span className="tab-badge">{overdue}</span>}
-              <span>{t.label}</span>
+              {({ isActive }) => (
+                <>
+                  <span className="tab-icon"><Icon name={t.icon} bold={isActive} /></span>
+                  {t.to === '/book' && overdue > 0 && <span className="tab-badge">{overdue}</span>}
+                  <span>{t.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
