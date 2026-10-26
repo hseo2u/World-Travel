@@ -13,6 +13,10 @@ import MoneyPage from './pages/MoneyPage'
 import ExpensePage from './pages/ExpensePage'
 import WalletPage from './pages/WalletPage'
 import PackPage from './pages/PackPage'
+import MorePage from './pages/more/MorePage'
+import EntryPage from './pages/more/EntryPage'
+import DocsPage from './pages/more/DocsPage'
+import SafetyPage from './pages/more/SafetyPage'
 import { useBookings } from './lib/useData'
 import { dueSoon } from './lib/bookings'
 import { todayIso } from './lib/dates'
@@ -26,6 +30,7 @@ const TABS = [
   { to: '/book', label: '예약', icon: '📌' },
   { to: '/money', label: '가계부', icon: '💳' },
   { to: '/map', label: '지도', icon: '🗺️' },
+  { to: '/more', label: '기타', icon: '☰' },
 ]
 
 export default function App() {
@@ -47,6 +52,10 @@ export default function App() {
             <Route path="/money" element={<MoneyPage />} />
             <Route path="/money/wallet" element={<WalletPage />} />
             <Route path="/money/:expenseId" element={<ExpensePage />} />
+            <Route path="/more" element={<MorePage />} />
+            <Route path="/more/entry" element={<EntryPage />} />
+            <Route path="/more/docs" element={<DocsPage />} />
+            <Route path="/more/safety" element={<SafetyPage />} />
             <Route path="/pack" element={<PackPage />} />
             <Route path="/record" element={<ComingSoon title="기록" step="3단계 (12/14~1/3)" />} />
           </Routes>

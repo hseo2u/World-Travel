@@ -132,3 +132,18 @@ export interface PackItem {
   onTrip: boolean
   created: string
 }
+
+/** A photo or PDF of an important document, kept on the phone for offline use. */
+export interface DocFile {
+  id: string
+  title: string
+  blob: Blob
+  mime: string
+  created: string
+}
+
+/** Small free-form records, such as the safety card or notes per country. */
+export interface KeyValue {
+  key: string
+  value: Record<string, string>
+}
