@@ -6,7 +6,11 @@ import DayPage from './pages/DayPage'
 import ImportPage from './pages/ImportPage'
 import AiPage from './pages/AiPage'
 import SettingsPage from './pages/SettingsPage'
-import ComingSoon from './pages/ComingSoon'
+import TodayView from './pages/record/TodayView'
+import DaysView from './pages/record/DaysView'
+import CountriesView from './pages/record/CountriesView'
+import FeedView from './pages/record/FeedView'
+import MomentPage from './pages/record/MomentPage'
 import BookingsPage from './pages/BookingsPage'
 import BookingPage from './pages/BookingPage'
 import MoneyPage from './pages/MoneyPage'
@@ -27,9 +31,9 @@ const MapPage = lazy(() => import('./pages/MapPage'))
 const TABS = [
   { to: '/', label: '홈', icon: '🏠', end: true },
   { to: '/plan', label: '계획', icon: '🗓️' },
+  { to: '/record', label: '기록', icon: '📷' },
   { to: '/book', label: '예약', icon: '📌' },
   { to: '/money', label: '가계부', icon: '💳' },
-  { to: '/map', label: '지도', icon: '🗺️' },
   { to: '/more', label: '기타', icon: '☰' },
 ]
 
@@ -57,7 +61,12 @@ export default function App() {
             <Route path="/more/docs" element={<DocsPage />} />
             <Route path="/more/safety" element={<SafetyPage />} />
             <Route path="/pack" element={<PackPage />} />
-            <Route path="/record" element={<ComingSoon title="기록" step="3단계 (12/14~1/3)" />} />
+            <Route path="/record" element={<TodayView />} />
+            <Route path="/record/day/:date" element={<TodayView />} />
+            <Route path="/record/days" element={<DaysView />} />
+            <Route path="/record/countries" element={<CountriesView />} />
+            <Route path="/record/feed" element={<FeedView />} />
+            <Route path="/record/m/:momentId" element={<MomentPage />} />
           </Routes>
         </main>
         <nav className="tabbar">

@@ -147,3 +147,36 @@ export interface KeyValue {
   key: string
   value: Record<string, string>
 }
+
+/** A photo resized for the phone, with a small copy for grids. */
+export interface Photo {
+  id: string
+  blob: Blob
+  thumb: Blob
+  /** When it was taken, 'YYYY-MM-DDTHH:mm' local time, from the photo itself when it says */
+  taken: string
+  lat?: number
+  lng?: number
+}
+
+/**
+ * One record: a place visited with its photos, stars and a line.
+ * A record without a place holds photos for that day's album.
+ */
+export interface Moment {
+  id: string
+  tripId: string
+  /** YYYY-MM-DD */
+  date: string
+  /** HH:mm */
+  time: string
+  place: string
+  city: string
+  country: string
+  lat?: number
+  lng?: number
+  /** 0 = not rated */
+  rating: number
+  caption: string
+  photoIds: string[]
+}

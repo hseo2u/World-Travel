@@ -48,6 +48,7 @@ export default function PlanPage() {
     <div className="page">
       <header className="page-head">
         <h1>계획</h1>
+        <Link to="/map" className="btn small">🗺️ 지도</Link>
         <Link to="/plan/import" className="btn small">가져오기</Link>
       </header>
       {days.length > 0 && (
