@@ -1,14 +1,23 @@
 import { useNavigate } from 'react-router-dom'
 import { dayDate, formatShort } from '../../lib/dates'
 import { CONSULAR_CALL, countryStays, ENTRY, ENTRY_CHECKED, schengenMax } from '../../lib/entry'
+import { db } from '../../db'
+import { useDraft } from '../../lib/useDraft'
 import { useKv } from '../../lib/useKv'
 import { useTrip } from '../../lib/useTrip'
 
 export default function EntryPage() {
   const navigate = useNavigate()
   const { trip, days, loading } = useTrip()
-  const [memo, setMemo] = useKv('entry-memo')
+  const saved = useKv('entry-memo')
+  const { draft: memo = {}, set, dirty } = useDraft(saved, 'entry-memo')
+  const setMemo = (country: string, v: string) => set({ [country]: v })
   if (loading || !trip) return null
+
+  async function commit() {
+    await db.kv.put({ key: 'entry-memo', value: memo })
+    navigate('/more')
+  }
 
   const stays = countryStays(days)
   const schengen = schengenMax(trip.startDate, days)
@@ -22,6 +31,7 @@ export default function EntryPage() {
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/more')} aria-label="뒤로">←</button>
         <h1>나라별 입국 정보</h1>
+        <button className="btn primary small" onClick={commit} disabled={!dirty}>저장</button>
       </header>
       <p className="muted">한국 여권 기준으로 {ENTRY_CHECKED}에 정리했어요. 규정이 자주 바뀌니 출발 전에 외교부 해외안전여행(0404.go.kr)에서 한 번 더 확인하세요.</p>
 

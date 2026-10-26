@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, newId, TRIP_ID } from '../db'
 import { formatShort, todayIso } from '../lib/dates'
-import { cashBalances, CURRENCIES, DEFAULT_KRW_PER_UNIT, formatMoney, krwPerUnit, rateFromExchange } from '../lib/money'
+import { cashBalances, CURRENCIES, formatMoney, krwPerUnit, rateFromExchange } from '../lib/money'
 import { useMoney } from '../lib/useData'
 import type { PayKind } from '../types'
 
@@ -118,8 +118,8 @@ export default function WalletPage() {
               <span>{c}</span>
               <input
                 id={`rate-${c}`} className="rate-input" type="number" inputMode="decimal"
-                value={Math.round(krwPerUnit(c, rates) * 100) / 100}
-                onChange={(e) => db.rates.put({ currency: c, krwPerUnit: Number(e.target.value) || DEFAULT_KRW_PER_UNIT[c] || 0, updated: todayIso() })}
+                key={krwPerUnit(c, rates)} defaultValue={Math.round(krwPerUnit(c, rates) * 100) / 100}
+                onBlur={(e) => Number(e.target.value) > 0 && db.rates.put({ currency: c, krwPerUnit: Number(e.target.value), updated: todayIso() })}
               />
             </li>
           ))}

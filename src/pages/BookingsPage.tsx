@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { db, newId, TRIP_ID } from '../db'
+import { db } from '../db'
 import { coverage, KIND_ICON, KIND_LABEL } from '../lib/bookings'
 import { dayDate, formatShort, todayIso } from '../lib/dates'
 import { useBookingSync, useBookings } from '../lib/useData'
@@ -28,32 +28,14 @@ export default function BookingsPage() {
     await db.bookings.update(b.id, { status: b.status === 'booked' ? 'needed' : 'booked' })
   }
 
-  async function addFlight() {
-    const id = newId()
-    await db.bookings.add({
-      id, tripId: TRIP_ID, kind: 'flight', title: '새 항공편', status: 'booked', dayId: days[0]?.id ?? '',
-      bookedVia: '', confirmation: '', memo: '',
-      flight: { flightNo: '', from: '', to: '', departs: '', arrives: '' },
-    })
-    navigate(`/book/${id}`)
-  }
-
-  async function addOther() {
-    const id = newId()
-    await db.bookings.add({
-      id, tripId: TRIP_ID, kind: 'activity', title: '', status: 'needed', dayId: days[0]?.id ?? '',
-      bookedVia: '', confirmation: '', memo: '',
-    })
-    navigate(`/book/${id}`)
-  }
 
   return (
     <div className="page">
       <header className="page-head">
         <h1>예약</h1>
         <Link to="/pack" className="btn small">🎒 준비물</Link>
-        <button className="btn small" onClick={addFlight}>+ 항공편</button>
-        <button className="btn small" onClick={addOther}>+ 직접 추가</button>
+        <button className="btn small" onClick={() => navigate('/book/new?kind=flight')}>+ 항공편</button>
+        <button className="btn small" onClick={() => navigate('/book/new')}>+ 직접 추가</button>
       </header>
       <p className="muted">계획표에서 숙소, 이동, 투어를 찾아 예약할 목록을 자동으로 만들어요. 예약하면 체크하고 어디서 했는지 남겨두세요.</p>
 

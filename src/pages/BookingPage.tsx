@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, TRIP_ID } from '../db'
 import { KIND_LABEL } from '../lib/bookings'
@@ -7,6 +7,7 @@ import { dayDate, formatShort, todayIso } from '../lib/dates'
 import { alignFlight, matchFlightDay, type Alignment } from '../lib/flightAlign'
 import { CURRENCIES, krwPerUnit } from '../lib/money'
 import { applyAlignment } from '../lib/planOps'
+import { useDraft } from '../lib/useDraft'
 import { useMoney } from '../lib/useData'
 import { useTrip } from '../lib/useTrip'
 import type { Booking, BookingKind, BookingStatus, ExpenseCategory, FlightInfo } from '../types'
@@ -20,20 +21,40 @@ const STATUS: { s: BookingStatus; label: string }[] = [
 const CATEGORY_FOR: Record<BookingKind, ExpenseCategory> = { stay: 'stay', flight: 'flight', transport: 'transport', activity: 'activity' }
 
 export default function BookingPage() {
-  const { bookingId } = useParams()
+  const { bookingId = '' } = useParams()
+  const [params] = useSearchParams()
   const navigate = useNavigate()
   const { trip, days, loading } = useTrip()
   const { methods, rates } = useMoney()
-  const booking = useLiveQuery(() => db.bookings.get(bookingId ?? ''), [bookingId])
-  const linkedExpense = useLiveQuery(() => db.expenses.filter((e) => e.bookingId === bookingId).first(), [bookingId])
+  const isNew = bookingId === 'new'
+  const flightKind = params.get('kind') === 'flight'
+  const firstDayId = days[0]?.id ?? ''
+  // A new booking lives only on this screen until 등록 is pressed.
+  const fresh = useMemo<Booking>(() => flightKind
+    ? { id: newId(), tripId: TRIP_ID, kind: 'flight', title: '새 항공편', status: 'booked', dayId: firstDayId, bookedVia: '', confirmation: '', memo: '', flight: { flightNo: '', from: '', to: '', departs: '', arrives: '' } }
+    : { id: newId(), tripId: TRIP_ID, kind: 'activity', title: '', status: 'needed', dayId: firstDayId, bookedVia: '', confirmation: '', memo: '' },
+  [firstDayId, flightKind])
+  const stored = useLiveQuery(async () => isNew ? null : (await db.bookings.get(bookingId)) ?? null, [bookingId])
+  const { draft, set: save, dirty } = useDraft(isNew ? fresh : stored ?? undefined, bookingId)
+  const linkedExpense = useLiveQuery(() => db.expenses.filter((e) => e.bookingId === draft?.id).first(), [draft?.id])
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [aligned, setAligned] = useState('')
 
-  if (loading || !trip || booking === undefined) return null
-  if (!booking) return <div className="page"><p>이 예약을 찾을 수 없어요.</p><Link to="/book">예약으로</Link></div>
-  const b = booking
+  if (loading || !trip || (!isNew && stored === undefined)) return null
+  if (!draft) return <div className="page"><p>이 예약을 찾을 수 없어요.</p><Link to="/book">예약으로</Link></div>
+  const b = draft
 
-  const save = (patch: Partial<Booking>) => db.bookings.update(b.id, patch)
+  /** Writes the draft. A new booking then gets its own address so later saves update it. */
+  async function persist() {
+    await db.bookings.put(b)
+    if (isNew) navigate(`/book/${b.id}`, { replace: true })
+  }
+
+  async function commit() {
+    await db.bookings.put(b)
+    navigate('/book')
+  }
+
   const saveFlight = (patch: Partial<FlightInfo>) => {
     const flight = { ...b.flight!, ...patch }
     const extra: Partial<Booking> = { flight }
@@ -43,7 +64,7 @@ export default function BookingPage() {
       const match = matchFlightDay(days, flight)
       if (match) extra.dayId = match.id
     }
-    return save(extra)
+    save(extra)
   }
 
   const day = days.find((d) => d.id === b.dayId)
@@ -51,6 +72,7 @@ export default function BookingPage() {
 
   async function addExpense() {
     if (!b.price) return
+    await persist()
     const currency = b.currency ?? 'USD'
     const method = methods.find((m) => m.kind === 'card') ?? methods[0]
     await db.expenses.add({
@@ -62,12 +84,13 @@ export default function BookingPage() {
 
   async function remove() {
     if (!confirmDelete) return setConfirmDelete(true)
-    await db.bookings.delete(b.id)
+    if (!isNew) await db.bookings.delete(b.id)
     navigate('/book')
   }
 
   async function align() {
     if (!alignment) return
+    await persist()
     await applyAlignment(alignment)
     setAligned('계획을 항공편 날짜에 맞췄어요.')
   }
@@ -77,7 +100,9 @@ export default function BookingPage() {
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/book')} aria-label="뒤로">←</button>
         <h1>{KIND_LABEL[b.kind]} 예약</h1>
+        <button className="btn primary small" onClick={commit} disabled={!isNew && !dirty}>{isNew ? '등록' : '저장'}</button>
       </header>
+      {dirty && !isNew && <p className="muted">저장을 눌러야 바뀐 내용이 반영돼요.</p>}
 
       <div className="chips">
         {STATUS.map(({ s, label }) => (
@@ -166,7 +191,7 @@ export default function BookingPage() {
       ) : null}
       <label className="field"><span>메모</span><textarea id="b-memo" rows={2} value={b.memo} onChange={(e) => save({ memo: e.target.value })} /></label>
 
-      <button className="btn danger" onClick={remove}>{confirmDelete ? '정말 삭제' : '예약 항목 삭제'}</button>
+      <button className="btn danger" onClick={remove}>{isNew ? '취소' : confirmDelete ? '정말 삭제' : '예약 항목 삭제'}</button>
       {b.planKey && confirmDelete && <p className="muted">계획표에서 만든 항목이라 계획에 남아 있으면 다시 생겨요. 안 해도 되는 예약이면 "필요 없음"을 누르세요.</p>}
     </div>
   )
