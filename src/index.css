@@ -190,3 +190,8 @@ p { line-height: 1.5; }
 .card h2 { margin-bottom: 10px; }
 .exchange-form .pair { display: flex; gap: 8px; flex: 1 1 180px; min-width: 0; }
 .exchange-form .pair input { min-width: 0; }
+
+.pack-group { display: flex; flex-direction: column; gap: 8px; }
+.pack-group h2 { font-size: 16px; margin: 6px 2px 0; }
+.pack-group .booking-title { white-space: normal; }
+.pack-progress .spend-big .muted { font-size: 18px; font-weight: 600; }

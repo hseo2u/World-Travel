@@ -9,6 +9,8 @@ export interface Trip {
   startDate: string
   budgetKrw: number
   mode: TravelMode
+  /** The starter packing list was added once; deleting items never brings it back. */
+  packSeeded?: boolean
 }
 
 export interface Day {
@@ -75,7 +77,7 @@ export interface FlightInfo {
   arrives: string
 }
 
-export type ExpenseCategory = 'flight' | 'transport' | 'stay' | 'food' | 'activity' | 'admission' | 'shopping' | 'essentials' | 'etc'
+export type ExpenseCategory = 'flight' | 'transport' | 'stay' | 'food' | 'activity' | 'admission' | 'shopping' | 'supplies' | 'essentials' | 'etc'
 export type PayKind = 'card' | 'cash'
 
 export interface PayMethod {
@@ -118,4 +120,15 @@ export interface Rate {
   currency: string
   krwPerUnit: number
   updated: string
+}
+
+export interface PackItem {
+  id: string
+  tripId: string
+  group: string
+  name: string
+  done: boolean
+  /** Added during the trip, so buying it is a supplies expense */
+  onTrip: boolean
+  created: string
 }

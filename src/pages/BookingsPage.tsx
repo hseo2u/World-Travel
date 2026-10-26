@@ -51,6 +51,7 @@ export default function BookingsPage() {
     <div className="page">
       <header className="page-head">
         <h1>예약</h1>
+        <Link to="/pack" className="btn small">🎒 준비물</Link>
         <button className="btn small" onClick={addFlight}>+ 항공편</button>
         <button className="btn small" onClick={addOther}>+ 직접 추가</button>
       </header>

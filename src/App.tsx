@@ -12,6 +12,7 @@ import BookingPage from './pages/BookingPage'
 import MoneyPage from './pages/MoneyPage'
 import ExpensePage from './pages/ExpensePage'
 import WalletPage from './pages/WalletPage'
+import PackPage from './pages/PackPage'
 import { useBookings } from './lib/useData'
 import { dueSoon } from './lib/bookings'
 import { todayIso } from './lib/dates'
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="/money" element={<MoneyPage />} />
             <Route path="/money/wallet" element={<WalletPage />} />
             <Route path="/money/:expenseId" element={<ExpensePage />} />
+            <Route path="/pack" element={<PackPage />} />
             <Route path="/record" element={<ComingSoon title="기록" step="3단계 (12/14~1/3)" />} />
           </Routes>
         </main>

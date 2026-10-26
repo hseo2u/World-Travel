@@ -9,6 +9,7 @@ export const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   activity: '투어·액티비티',
   admission: '입장료',
   shopping: '쇼핑',
+  supplies: '필요물품 구매',
   essentials: '통신·보험·비자',
   etc: '기타',
 }
@@ -21,6 +22,7 @@ export const CATEGORY_ICON: Record<ExpenseCategory, string> = {
   activity: '🧗',
   admission: '🎟️',
   shopping: '🛍️',
+  supplies: '🧴',
   essentials: '📶',
   etc: '•',
 }

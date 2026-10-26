@@ -7,11 +7,14 @@ import SpendSummaryCard from '../components/SpendSummaryCard'
 import { summarize } from '../lib/money'
 import { dueSoon, KIND_ICON } from '../lib/bookings'
 import { useBookingSync, useBookings, useMoney } from '../lib/useData'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db, TRIP_ID } from '../db'
 
 export default function HomePage() {
   const { trip, days, loading } = useTrip()
   const { expenses } = useMoney()
   const bookings = useBookings()
+  const pack = useLiveQuery(() => db.packItems.where('tripId').equals(TRIP_ID).toArray(), [], [])
   useBookingSync(trip, days)
   if (loading || !trip) return null
 
@@ -92,6 +95,17 @@ export default function HomePage() {
           )}
           <Link to="/money" className="link-card">
             <SpendSummaryCard trip={trip} summary={summarize(trip, expenses, today, days.length)} compact />
+          </Link>
+          <Link to="/pack" className="card link-card">
+            <div className="eyebrow">🎒 준비물</div>
+            {pack.length === 0 ? (
+              <div>장기여행 기본 목록으로 시작해요. 여행 중에 필요해진 것도 여기에 적어두세요.</div>
+            ) : (
+              <>
+                <div>{pack.filter((i) => i.done).length} / {pack.length} 챙김{pack.some((i) => i.onTrip && !i.done) ? ` · 살 것 ${pack.filter((i) => i.onTrip && !i.done).length}개` : ''}</div>
+                <div className="bar"><i style={{ width: `${(pack.filter((i) => i.done).length / pack.length) * 100}%` }} /></div>
+              </>
+            )}
           </Link>
           <Link to="/ai" className="card link-card ai-card">
             <div className="eyebrow">AI에게 물어보기</div>

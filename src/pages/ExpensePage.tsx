@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { db, newId, TRIP_ID } from '../db'
 import { dayDate, todayIso } from '../lib/dates'
 import { CATEGORY_ICON, CATEGORY_LABEL, CURRENCIES, currencyOf, formatKrw, krwPerUnit } from '../lib/money'
@@ -13,6 +13,7 @@ export default function ExpensePage() {
   const { expenseId } = useParams()
   const isNew = expenseId === 'new'
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const { trip, days, loading } = useTrip()
   const { expenses, methods, rates } = useMoney()
   const [draft, setDraft] = useState<Expense | undefined>()
@@ -27,12 +28,15 @@ export default function ExpensePage() {
     const today = todayIso()
     const todayDay = days.find((d) => dayDate(trip.startDate, d.order) === today)
     const last = expenses[0]
+    // The packing list links here with the item already filled in.
+    const category = params.get('category')
     setDraft({
       id: newId(), tripId: TRIP_ID, date: today, amount: 0,
       currency: (todayDay && currencyOf(todayDay.country)) ?? last?.currency ?? 'KRW',
-      krw: 0, category: 'food', payMethodId: last?.payMethodId ?? methods[0]?.id ?? '', memo: '',
+      krw: 0, category: category && category in CATEGORY_LABEL ? (category as ExpenseCategory) : 'food',
+      payMethodId: last?.payMethodId ?? methods[0]?.id ?? '', memo: params.get('memo') ?? '',
     })
-  }, [loading, trip, isNew, expenseId, draft, days, expenses, methods])
+  }, [loading, trip, isNew, expenseId, draft, days, expenses, methods, params])
 
   if (loading || !trip || !draft) return null
   const rate = krwPerUnit(draft.currency, rates)
