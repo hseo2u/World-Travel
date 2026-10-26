@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { buildPrompt, PROMPT_KINDS, type PromptKind } from '../lib/aiPrompt'
 import { useTrip } from '../lib/useTrip'
@@ -14,7 +14,8 @@ export default function AiPage() {
   const [params] = useSearchParams()
   const [kind, setKind] = useState<PromptKind>(params.get('day') ? 'next-move' : 'review')
   const [dayId, setDayId] = useState(params.get('day') ?? '')
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'' | 'done' | 'manual'>('')
+  const box = useRef<HTMLTextAreaElement>(null)
   if (loading || !trip) return null
 
   const spec = PROMPT_KINDS.find((k) => k.kind === kind)!
@@ -22,9 +23,16 @@ export default function AiPage() {
   const prompt = days.length ? buildPrompt(kind, trip, days, day) : ''
 
   async function copy() {
-    await navigator.clipboard.writeText(prompt)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(prompt)
+      setCopied('done')
+    } catch {
+      // Some app views refuse clipboard access; select the text so the viewer can copy it.
+      box.current?.focus()
+      box.current?.select()
+      setCopied('manual')
+    }
+    setTimeout(() => setCopied(''), 3000)
   }
 
   return (
@@ -55,8 +63,8 @@ export default function AiPage() {
         <p>먼저 계획표를 가져와 주세요.</p>
       ) : (
         <>
-          <textarea className="paste" rows={12} readOnly value={prompt} />
-          <button className="btn primary wide" onClick={copy}>{copied ? '복사했어요 ✓' : '질문 복사하기'}</button>
+          <textarea ref={box} className="paste" rows={12} readOnly value={prompt} />
+          <button className="btn primary wide" onClick={copy}>{copied === 'done' ? '복사했어요 ✓' : copied === 'manual' ? '선택된 글을 길게 눌러 복사하세요' : '질문 복사하기'}</button>
           <div className="btn-row">
             {APPS.map((a) => <a key={a.name} className="btn" href={a.url} target="_blank" rel="noreferrer">{a.name} 열기</a>)}
           </div>

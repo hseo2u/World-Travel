@@ -8,12 +8,16 @@ export default function ImportPage() {
   const navigate = useNavigate()
   const { days: existing } = useTrip()
   const [text, setText] = useState('')
+  const [confirming, setConfirming] = useState(false)
   const result = useMemo(() => (text.trim() ? rowsToDays(parseTsv(text)) : undefined), [text])
   const countries = result ? new Set(result.days.map((d) => d.country).filter(Boolean)) : new Set<string>()
 
   async function apply() {
     if (!result) return
-    if (existing.length && !window.confirm(`지금 있는 ${existing.length}일 일정을 지우고 새 계획표로 바꿀까요?`)) return
+    if (existing.length && !confirming) {
+      setConfirming(true)
+      return
+    }
     await db.transaction('rw', db.days, async () => {
       await db.days.where('tripId').equals(TRIP_ID).delete()
       await db.days.bulkAdd(result.days.map((d) => ({ ...d, id: newId(), tripId: TRIP_ID })))
@@ -36,7 +40,10 @@ export default function ImportPage() {
         rows={10}
         placeholder={'일\t국가\t도시\t내용\t숙박\t기타\nDay 1\t페루\t리마\t\t리마\t'}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value)
+          setConfirming(false)
+        }}
       />
       {result && (
         <div className="card">
@@ -48,8 +55,9 @@ export default function ImportPage() {
         </div>
       )}
       <button className="btn primary wide" disabled={!result?.days.length} onClick={apply}>
-        이 계획표로 만들기
+        {confirming ? `지금 있는 ${existing.length}일을 지우고 바꾸기` : '이 계획표로 만들기'}
       </button>
+      {confirming && <p className="muted">한 번 더 누르면 지금 일정이 새 계획표로 바뀌어요.</p>}
     </div>
   )
 }

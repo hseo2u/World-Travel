@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+import mapWorkerUrl from '../platform/mapWorker'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { useTrip } from '../lib/useTrip'
@@ -11,7 +11,6 @@ import type { Place, Transport } from '../types'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 
-// Vite bundles MapLibre's worker as its own file; tell MapLibre where it is.
 maplibregl.setWorkerUrl(mapWorkerUrl)
 
 const OFFLINE_STYLE: maplibregl.StyleSpecification = {

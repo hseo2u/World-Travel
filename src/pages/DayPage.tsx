@@ -15,9 +15,11 @@ export default function DayPage() {
   const { trip, days, loading } = useTrip()
   const day = days.find((d) => d.id === dayId)
   const [route, setRoute] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     if (day) setRoute(day.cities.join(' > '))
+    setConfirmDelete(false)
     // Only reset the text box when moving to another day, not on every save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day?.id])
@@ -58,7 +60,11 @@ export default function DayPage() {
   }
 
   async function remove() {
-    if (!window.confirm(`Day ${day!.order + 1}을 지울까요? 뒤의 날짜가 하루씩 당겨져요.`)) return
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    setConfirmDelete(false)
     await db.days.delete(day!.id)
     await renumberDays(TRIP_ID)
     navigate('/plan')
@@ -112,8 +118,9 @@ export default function DayPage() {
       </div>
       <div className="btn-row">
         <Link className="btn" to={`/ai?day=${day.id}`}>AI에게 이 날 물어보기</Link>
-        <button className="btn danger" onClick={remove}>삭제</button>
+        <button className="btn danger" onClick={remove}>{confirmDelete ? '정말 삭제' : '삭제'}</button>
       </div>
+      {confirmDelete && <p className="muted">한 번 더 누르면 삭제되고 뒤의 날짜가 하루씩 당겨져요.</p>}
     </div>
   )
 }

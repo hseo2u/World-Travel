@@ -1,5 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { Day, Place, Trip } from './types'
+import { SEED_TSV } from './platform/seed'
+import { parseTsv, rowsToDays } from './lib/importPlan'
 
 // Everything lives on the phone first so the app works offline.
 // A sync layer (Supabase) can be added later without changing these tables.
@@ -17,7 +19,15 @@ db.version(1).stores({
 
 export const TRIP_ID = 'main'
 
-export async function ensureTrip(): Promise<Trip> {
+let ensuring: Promise<Trip> | undefined
+
+/** Creates the single trip on first open. Safe to call from several places at once. */
+export function ensureTrip(): Promise<Trip> {
+  ensuring ??= createTripOnce()
+  return ensuring
+}
+
+async function createTripOnce(): Promise<Trip> {
   const existing = await db.trips.get(TRIP_ID)
   if (existing) return existing
   const trip: Trip = {
@@ -27,7 +37,13 @@ export async function ensureTrip(): Promise<Trip> {
     budgetKrw: 15_000_000,
     mode: 'solo',
   }
-  await db.trips.put(trip)
+  await db.transaction('rw', db.trips, db.days, async () => {
+    await db.trips.put(trip)
+    if (SEED_TSV) {
+      const { days } = rowsToDays(parseTsv(SEED_TSV))
+      await db.days.bulkAdd(days.map((d) => ({ ...d, id: newId(), tripId: TRIP_ID })))
+    }
+  })
   return trip
 }
 
