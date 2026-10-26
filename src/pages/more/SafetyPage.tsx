@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { daysBetween, todayIso } from '../../lib/dates'
 import { CONSULAR_CALL, ENTRY } from '../../lib/entry'
+import { db } from '../../db'
+import { useDraft } from '../../lib/useDraft'
 import { useKv } from '../../lib/useKv'
 import { useTrip } from '../../lib/useTrip'
 
@@ -17,8 +19,15 @@ const FIELDS: [string, string, string][] = [
 export default function SafetyPage() {
   const navigate = useNavigate()
   const { trip, days, loading } = useTrip()
-  const [card, set] = useKv('safety')
+  const saved = useKv('safety')
+  const { draft: card = {}, set: patch, dirty } = useDraft(saved, 'safety')
+  const set = (key: string, v: string) => patch({ [key]: v })
   if (loading || !trip) return null
+
+  async function commit() {
+    await db.kv.put({ key: 'safety', value: card })
+    navigate('/more')
+  }
 
   const sinceStart = daysBetween(trip.startDate, todayIso())
   const today = days.find((d) => d.order === Math.max(0, sinceStart)) ?? days[0]
@@ -30,6 +39,7 @@ export default function SafetyPage() {
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/more')} aria-label="뒤로">←</button>
         <h1>안전카드</h1>
+        <button className="btn primary small" onClick={commit} disabled={!dirty}>저장</button>
       </header>
 
       <section className="card safety-now">

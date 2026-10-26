@@ -1,19 +1,27 @@
 import { useNavigate } from 'react-router-dom'
 import { db, TRIP_ID } from '../db'
+import { useDraft } from '../lib/useDraft'
 import { useTrip } from '../lib/useTrip'
 import type { Trip } from '../types'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { trip, loading } = useTrip()
+  const { trip: saved, loading } = useTrip()
+  const { draft: trip, set: save, dirty } = useDraft<Trip>(saved, 'trip')
   if (loading || !trip) return null
-  const save = (patch: Partial<Trip>) => db.trips.update(TRIP_ID, patch)
+
+  async function commit() {
+    const { name, startDate, budgetKrw, mode } = trip!
+    await db.trips.update(TRIP_ID, { name, startDate, budgetKrw, mode })
+    navigate('/')
+  }
 
   return (
     <div className="page">
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/')} aria-label="뒤로">←</button>
         <h1>여행 설정</h1>
+        <button className="btn primary small" onClick={commit} disabled={!dirty}>저장</button>
       </header>
       <label className="field">
         <span>여행 이름</span>

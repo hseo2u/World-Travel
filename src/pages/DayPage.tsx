@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { db, newId, renumberDays, TRIP_ID } from '../db'
+import { useDraft } from '../lib/useDraft'
 import { useTrip } from '../lib/useTrip'
 import { dayDate, formatShort } from '../lib/dates'
 import { parseCities } from '../lib/importPlan'
 import { TRANSPORT_LABEL } from '../lib/route'
 import DayStops from '../components/DayStops'
-import type { Day, Transport } from '../types'
+import type { Transport } from '../types'
 
 const TRANSPORTS = Object.keys(TRANSPORT_LABEL) as Transport[]
 
@@ -15,28 +16,23 @@ export default function DayPage() {
   const navigate = useNavigate()
   const { trip, days, loading } = useTrip()
   const day = days.find((d) => d.id === dayId)
-  const [route, setRoute] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
-
-  useEffect(() => {
-    if (day) setRoute(day.cities.join(' > '))
-    setConfirmDelete(false)
-    // Only reset the text box when moving to another day, not on every save.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day?.id])
+  const saved = day && {
+    country: day.country, route: day.cities.join(' > '), transport: day.transport ?? 'unknown',
+    content: day.content, lodging: day.lodging, notes: day.notes, buffer: day.buffer,
+  }
+  const { draft: f, set, dirty } = useDraft(saved, day?.id ?? '')
 
   if (loading || !trip) return null
   if (!day) return <div className="page"><p>이 Day를 찾을 수 없어요.</p><Link to="/plan">계획으로</Link></div>
 
-  const save = (patch: Partial<Day>) => db.days.update(day.id, patch)
+  const form = f!
+  const cities = parseCities(form.route)
 
-  function saveRoute(text: string) {
-    setRoute(text)
-    const cities = parseCities(text)
-    void save({
-      cities,
-      transport: cities.length > 1 ? (day!.transport ?? 'unknown') : undefined,
-    })
+  async function save() {
+    const { route: _route, ...rest } = form
+    await db.days.update(day!.id, { ...rest, cities, transport: cities.length > 1 ? form.transport : undefined })
+    navigate('/plan')
   }
 
   async function move(delta: number) {
@@ -80,20 +76,22 @@ export default function DayPage() {
         <button className="icon-btn" onClick={() => navigate('/plan')} aria-label="뒤로">←</button>
         <h1>Day {day.order + 1}</h1>
         <span className="muted">{formatShort(dayDate(trip.startDate, day.order))}</span>
+        <button className="btn primary small" onClick={save} disabled={!dirty}>저장</button>
       </header>
+      {dirty && <p className="muted">저장을 눌러야 바뀐 내용이 반영돼요.</p>}
 
       <label className="field">
         <span>나라</span>
-        <input value={day.country} onChange={(e) => save({ country: e.target.value })} />
+        <input value={form.country} onChange={(e) => set({ country: e.target.value })} />
       </label>
       <label className="field">
         <span>도시 (이동하면 "리마 &gt; 와라즈")</span>
-        <input value={route} onChange={(e) => saveRoute(e.target.value)} />
+        <input value={form.route} onChange={(e) => set({ route: e.target.value })} />
       </label>
-      {day.cities.length > 1 && (
+      {cities.length > 1 && (
         <label className="field">
           <span>이동 수단</span>
-          <select value={day.transport ?? 'unknown'} onChange={(e) => save({ transport: e.target.value as Transport })}>
+          <select value={form.transport} onChange={(e) => set({ transport: e.target.value as Transport })}>
             {TRANSPORTS.map((t) => <option key={t} value={t}>{TRANSPORT_LABEL[t]}</option>)}
           </select>
         </label>
@@ -102,18 +100,18 @@ export default function DayPage() {
 
       <label className="field">
         <span>내용</span>
-        <textarea rows={3} value={day.content} onChange={(e) => save({ content: e.target.value })} />
+        <textarea rows={3} value={form.content} onChange={(e) => set({ content: e.target.value })} />
       </label>
       <label className="field">
         <span>숙박</span>
-        <input value={day.lodging} onChange={(e) => save({ lodging: e.target.value })} />
+        <input value={form.lodging} onChange={(e) => set({ lodging: e.target.value })} />
       </label>
       <label className="field">
         <span>기타 (소요시간, 메모)</span>
-        <textarea rows={2} value={day.notes} onChange={(e) => save({ notes: e.target.value })} />
+        <textarea rows={2} value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
       </label>
       <label className="check">
-        <input type="checkbox" checked={day.buffer} onChange={(e) => save({ buffer: e.target.checked })} />
+        <input type="checkbox" checked={form.buffer} onChange={(e) => set({ buffer: e.target.checked })} />
         <span>날씨·지연 대비 버퍼일</span>
       </label>
 
