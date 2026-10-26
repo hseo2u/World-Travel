@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
         alias: [
           { find: /^\.\.\/platform\/mapWorker$/, replacement: src('platform/mapWorker.artifact.ts') },
           { find: /^\.\/platform\/seed$/, replacement: src('platform/seed.artifact.ts') },
+          { find: /^\.\/platform\/updates$/, replacement: src('platform/updates.artifact.ts') },
           { find: /^seed-itinerary/, replacement: process.env.SEED_TSV ?? src('platform/empty.tsv') },
         ],
       },
