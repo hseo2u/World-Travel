@@ -7,6 +7,8 @@ import { here, nearbyPlaces, type PlaceHit } from '../../lib/nearby'
 import { savePhotos } from '../../lib/photos'
 import { dayForDate, fileIntoAlbums, whereOn } from '../../lib/records'
 import { useTrip } from '../../lib/useTrip'
+import { useStops } from '../../lib/useStops'
+import { STOP_KIND_ICON } from '../../lib/stops'
 import { newMomentLink, useMoments } from '../../lib/useRecords'
 import { Stars, ZoomBar } from './shared'
 
@@ -24,16 +26,19 @@ export default function TodayView() {
   const [hits, setHits] = useState<PlaceHit[] | undefined>()
   const [finding, setFinding] = useState('')
   const [note, setNote] = useState('')
-  if (loading || !trip) return null
-
   const today = todayIso()
   const date = param ?? today
-  const day = dayForDate(trip, days, date)
+  const day = trip ? dayForDate(trip, days, date) : undefined
+  const planned = useStops(day?.id)
+  if (loading || !trip) return null
+
   const where = whereOn(trip, days, date)
   const list = moments.filter((m) => m.date === date).sort((a, b) => a.time.localeCompare(b.time))
   const places = list.filter((m) => m.place)
   const album = list.find((m) => !m.place)
   const photoCount = list.reduce((n, m) => n + m.photoIds.length, 0)
+  // Planned stops not recorded yet, one tap away from a record.
+  const toRecord = planned.filter((st) => st.kind !== 'move' && !places.some((m) => m.place === st.name))
 
   async function findNearby() {
     setFinding('위치를 찾는 중…')
@@ -83,6 +88,19 @@ export default function TodayView() {
             </>
           )}
           {finding && <p className="muted">{finding}</p>}
+        </section>
+      )}
+
+      {toRecord.length > 0 && (
+        <section className="planned">
+          <div className="nearby-title">계획한 곳 · 다녀오면 눌러서 기록해요</div>
+          <div className="chips">
+            {toRecord.map((st) => (
+              <Link key={st.id} className="chip" to={newMomentLink(date, st.lat !== undefined ? { name: st.name, kind: '', lat: st.lat, lng: st.lng! } : undefined, st.name)}>
+                {STOP_KIND_ICON[st.kind]} {st.name}
+              </Link>
+            ))}
+          </div>
         </section>
       )}
 

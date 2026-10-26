@@ -180,3 +180,22 @@ export interface Moment {
   caption: string
   photoIds: string[]
 }
+
+export type StopKind = 'stay' | 'sight' | 'food' | 'move' | 'etc'
+
+/** One stop in a day's detailed plan: the hostel, a sight, a meal, a station. */
+export interface PlanStop {
+  id: string
+  tripId: string
+  dayId: string
+  order: number
+  kind: StopKind
+  name: string
+  /** HH:mm, optional */
+  time: string
+  memo: string
+  lat?: number
+  lng?: number
+  /** A Google Maps link the place came from, opened as is */
+  url?: string
+}

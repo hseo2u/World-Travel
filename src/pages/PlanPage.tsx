@@ -6,11 +6,17 @@ import { TRANSPORT_ICON } from '../lib/route'
 import { continentOf } from '../lib/geo'
 import { db, newId, TRIP_ID } from '../db'
 import DayRoute from '../components/DayRoute'
+import { useLiveQuery } from 'dexie-react-hooks'
 
 export default function PlanPage() {
   const { trip, days, loading } = useTrip()
   const navigate = useNavigate()
   const [continent, setContinent] = useState('')
+  const stopCount = useLiveQuery(async () => {
+    const counts = new Map<string, number>()
+    for (const st of await db.stops.where('tripId').equals(TRIP_ID).toArray()) counts.set(st.dayId, (counts.get(st.dayId) ?? 0) + 1)
+    return counts
+  }, [], new Map<string, number>())
   if (loading || !trip) return null
 
   async function addDay() {
@@ -92,6 +98,7 @@ export default function PlanPage() {
                   <div className="day-meta">
                     {d.transport && <span>{TRANSPORT_ICON[d.transport]}</span>}
                     {d.lodging && <span>🛏️ {d.lodging}</span>}
+                    {stopCount.has(d.id) && <span className="badge">📍 {stopCount.get(d.id)}곳</span>}
                     {d.buffer && <span className="badge">버퍼</span>}
                     {d.notes === '미정' && <span className="badge warn">미정</span>}
                   </div>

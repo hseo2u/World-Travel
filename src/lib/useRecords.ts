@@ -7,8 +7,9 @@ export function useMoments(): Moment[] {
   return useLiveQuery(() => db.moments.where('tripId').equals(TRIP_ID).toArray(), [], [] as Moment[])
 }
 
-export function newMomentLink(date: string, hit?: PlaceHit): string {
+export function newMomentLink(date: string, hit?: PlaceHit, name?: string): string {
   const q = new URLSearchParams({ date })
+  if (name) q.set('place', name)
   if (hit) {
     q.set('place', hit.name)
     q.set('lat', String(hit.lat))

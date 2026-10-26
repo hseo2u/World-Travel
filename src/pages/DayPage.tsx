@@ -5,6 +5,7 @@ import { useTrip } from '../lib/useTrip'
 import { dayDate, formatShort } from '../lib/dates'
 import { parseCities } from '../lib/importPlan'
 import { TRANSPORT_LABEL } from '../lib/route'
+import DayStops from '../components/DayStops'
 import type { Day, Transport } from '../types'
 
 const TRANSPORTS = Object.keys(TRANSPORT_LABEL) as Transport[]
@@ -65,7 +66,10 @@ export default function DayPage() {
       return
     }
     setConfirmDelete(false)
-    await db.days.delete(day!.id)
+    await db.transaction('rw', db.days, db.stops, async () => {
+      await db.days.delete(day!.id)
+      await db.stops.where('dayId').equals(day!.id).delete()
+    })
     await renumberDays(TRIP_ID)
     navigate('/plan')
   }
@@ -94,6 +98,8 @@ export default function DayPage() {
           </select>
         </label>
       )}
+      <DayStops day={day} prevDay={days.find((d) => d.order === day.order - 1)} />
+
       <label className="field">
         <span>내용</span>
         <textarea rows={3} value={day.content} onChange={(e) => save({ content: e.target.value })} />

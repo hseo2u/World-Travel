@@ -294,3 +294,19 @@ p { line-height: 1.5; }
 .star-input { display: flex; gap: 2px; }
 .star { width: 44px; height: 44px; border: none; background: none; font-size: 30px; color: var(--line); cursor: pointer; padding: 0; }
 .star.on { color: var(--accent); }
+
+.day-stops { display: flex; flex-direction: column; gap: 10px; }
+.ds-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ds-head h2 { margin: 0; }
+.stop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.stop-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.stop-row:last-child { border-bottom: none; }
+.stop-icon { font-size: 18px; flex: none; width: 24px; text-align: center; }
+.stop-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.stop-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stop-time { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 6px; }
+.stop-memo { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stop-move { display: flex; flex: none; }
+.small-icon { font-size: 16px; min-width: 36px; min-height: 36px; padding: 0; }
+.small-icon:disabled { opacity: 0.25; }
+.planned { display: flex; flex-direction: column; gap: 8px; }

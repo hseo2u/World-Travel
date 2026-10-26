@@ -3,6 +3,7 @@ import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import PlanPage from './pages/PlanPage'
 import DayPage from './pages/DayPage'
+import StopPage from './pages/StopPage'
 import ImportPage from './pages/ImportPage'
 import AiPage from './pages/AiPage'
 import SettingsPage from './pages/SettingsPage'
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/plan" element={<PlanPage />} />
             <Route path="/plan/import" element={<ImportPage />} />
             <Route path="/plan/:dayId" element={<DayPage />} />
+            <Route path="/plan/:dayId/stop/:stopId" element={<StopPage />} />
             <Route path="/map" element={<Suspense fallback={null}><MapPage /></Suspense>} />
             <Route path="/ai" element={<AiPage />} />
             <Route path="/settings" element={<SettingsPage />} />
