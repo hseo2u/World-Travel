@@ -7,27 +7,29 @@ import { useBookingSync, useBookings } from '../lib/useData'
 import { useTrip } from '../lib/useTrip'
 import type { Booking, BookingKind } from '../types'
 
-type Filter = 'todo' | 'all' | BookingKind
+type Status = 'todo' | 'done'
 
 export default function BookingsPage() {
   const { trip, days, loading } = useTrip()
   const bookings = useBookings()
   const navigate = useNavigate()
-  const [filter, setFilter] = useState<Filter>('todo')
+  const [status, setStatus] = useState<Status>('todo')
+  const [kind, setKind] = useState<BookingKind | null>(null)
   useBookingSync(trip, days)
   if (loading || !trip) return null
 
   const orderOf = new Map(days.map((d) => [d.id, d.order]))
   const today = todayIso()
   const sorted = [...bookings].sort((a, b) => (orderOf.get(a.dayId) ?? 1e9) - (orderOf.get(b.dayId) ?? 1e9))
-  const shown = sorted.filter((b) =>
-    filter === 'todo' ? b.status === 'needed' : filter === 'all' ? true : b.kind === filter,
-  )
+  const ofKind = sorted.filter((b) => !kind || b.kind === kind)
+  const todo = ofKind.filter((b) => b.status === 'needed')
+  const done = ofKind.filter((b) => b.status === 'booked')
+  // "필요 없음" items sit at the end of the done list so they can still be undone.
+  const shown = status === 'todo' ? todo : [...done, ...ofKind.filter((b) => b.status === 'skipped')]
 
   async function toggle(b: Booking) {
     await db.bookings.update(b.id, { status: b.status === 'booked' ? 'needed' : 'booked' })
   }
-
 
   return (
     <div className="page">
@@ -41,7 +43,7 @@ export default function BookingsPage() {
 
       <section className="coverage">
         {coverage(bookings).map((c) => (
-          <button key={c.kind} className={`cov${filter === c.kind ? ' active' : ''}`} onClick={() => setFilter(filter === c.kind ? 'todo' : c.kind)}>
+          <button key={c.kind} className={`cov${kind === c.kind ? ' active' : ''}`} onClick={() => setKind(kind === c.kind ? null : c.kind)}>
             <span className="cov-label">{KIND_ICON[c.kind]} {KIND_LABEL[c.kind]}</span>
             <span className="cov-num">{c.done}<span className="muted">/{c.total}{c.kind === 'stay' ? '박' : ''}</span></span>
             <span className="bar"><i style={{ width: `${c.total ? (c.done / c.total) * 100 : 0}%` }} /></span>
@@ -50,11 +52,9 @@ export default function BookingsPage() {
       </section>
 
       <div className="chips">
-        {(['todo', 'all'] as Filter[]).map((f) => (
-          <button key={f} className={filter === f ? 'chip active' : 'chip'} onClick={() => setFilter(f)}>
-            {f === 'todo' ? `해야 할 예약 ${bookings.filter((b) => b.status === 'needed').length}` : '전체'}
-          </button>
-        ))}
+        <button className={status === 'todo' ? 'chip active' : 'chip'} onClick={() => setStatus('todo')}>해야 할 예약 {todo.length}</button>
+        <button className={status === 'done' ? 'chip active' : 'chip'} onClick={() => setStatus('done')}>완료한 예약 {done.length}</button>
+        {kind && <button className="chip" onClick={() => setKind(null)}>{KIND_LABEL[kind]} ✕</button>}
       </div>
 
       <ul className="booking-list">
@@ -85,7 +85,9 @@ export default function BookingsPage() {
           )
         })}
       </ul>
-      {shown.length === 0 && <p className="muted">이 목록에는 예약이 없어요.</p>}
+      {shown.length === 0 && (
+        <p className="muted">{status === 'todo' ? '해야 할 예약이 없어요.' : '아직 완료한 예약이 없어요. 예약하면 왼쪽 동그라미를 눌러 체크하세요.'}</p>
+      )}
     </div>
   )
 }

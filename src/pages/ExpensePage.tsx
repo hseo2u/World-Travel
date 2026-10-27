@@ -32,7 +32,8 @@ export default function ExpensePage() {
       })
       return
     }
-    const today = todayIso()
+    const asked = params.get('date')
+    const today = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : todayIso()
     const todayDay = days.find((d) => dayDate(trip.startDate, d.order) === today)
     const last = expenses[0]
     // The packing list links here with the item already filled in.

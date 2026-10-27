@@ -115,6 +115,22 @@ export interface Exchange {
   place: string
 }
 
+/**
+ * "I counted my wallet: 1,200 USD." From then on the balance is this amount plus
+ * whatever was exchanged or spent in cash afterwards. `flowAt` is the running
+ * balance from records at the moment of counting, so only later records move it.
+ */
+export interface CashCount {
+  id: string
+  tripId: string
+  date: string
+  currency: string
+  amount: number
+  flowAt: number
+  /** When it was saved (ms), to order two counts on one day */
+  at: number
+}
+
 /** How many KRW one unit of the currency is worth */
 export interface Rate {
   currency: string

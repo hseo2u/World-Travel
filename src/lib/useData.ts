@@ -13,7 +13,8 @@ export function useMoney() {
   const methods = useLiveQuery(() => db.payMethods.toArray(), []) ?? []
   const exchanges = useLiveQuery(() => db.exchanges.where('tripId').equals(TRIP_ID).reverse().sortBy('date'), []) ?? []
   const rates = useLiveQuery(() => db.rates.toArray(), []) ?? []
-  return { expenses, methods, exchanges, rates }
+  const counts = useLiveQuery(() => db.cashCounts.where('tripId').equals(TRIP_ID).toArray(), []) ?? []
+  return { expenses, methods, exchanges, rates, counts }
 }
 
 let syncing: Promise<void> | undefined

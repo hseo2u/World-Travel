@@ -1,4 +1,4 @@
-import type { Exchange, Expense, ExpenseCategory, PayMethod, Rate, Trip } from '../types'
+import type { CashCount, Exchange, Expense, ExpenseCategory, PayMethod, Rate, Trip } from '../types'
 import { dayDate } from './dates'
 
 export const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
@@ -62,8 +62,8 @@ export function rateFromExchange(ex: Exchange, rates: Rate[]): number {
   return (ex.fromAmount * krwPerUnit(ex.fromCurrency, rates)) / ex.toAmount
 }
 
-/** Cash on hand per currency: exchanged in, minus exchanged out, minus cash spent. */
-export function cashBalances(exchanges: Exchange[], expenses: Expense[], methods: PayMethod[]): Map<string, number> {
+/** Money moved by records alone: exchanged in, minus exchanged out, minus cash spent. */
+export function cashFlows(exchanges: Exchange[], expenses: Expense[], methods: PayMethod[]): Map<string, number> {
   const out = new Map<string, number>()
   const add = (c: string, n: number) => out.set(c, (out.get(c) ?? 0) + n)
   for (const ex of exchanges) {
@@ -72,6 +72,24 @@ export function cashBalances(exchanges: Exchange[], expenses: Expense[], methods
   }
   const cashIds = new Set(methods.filter((m) => m.kind === 'cash').map((m) => m.id))
   for (const e of expenses) if (cashIds.has(e.payMethodId)) add(e.currency, -e.amount)
+  return out
+}
+
+/**
+ * Cash on hand per currency. Where the wallet was counted, the latest count is
+ * the starting point and only records added after it change it. KRW shows only
+ * when counted, since won usually leaves a bank account, not the wallet.
+ */
+export function cashBalances(exchanges: Exchange[], expenses: Expense[], methods: PayMethod[], counts: CashCount[] = []): Map<string, number> {
+  const flows = cashFlows(exchanges, expenses, methods)
+  const latest = new Map<string, CashCount>()
+  for (const c of counts) {
+    const prev = latest.get(c.currency)
+    if (!prev || c.date > prev.date || (c.date === prev.date && c.at > prev.at)) latest.set(c.currency, c)
+  }
+  const out = new Map<string, number>()
+  for (const [cur, n] of flows) if (cur !== 'KRW') out.set(cur, n)
+  for (const [cur, c] of latest) out.set(cur, c.amount + (flows.get(cur) ?? 0) - c.flowAt)
   return out
 }
 
@@ -120,4 +138,12 @@ export function formatKrw(n: number): string {
 export function formatMoney(amount: number, currency: string): string {
   const digits = amount % 1 === 0 ? 0 : 2
   return `${amount.toLocaleString('ko-KR', { maximumFractionDigits: digits })} ${currency}`
+}
+
+/** Short enough for a calendar cell: 253만, 4.2만, 8천, 900. */
+export function formatKrwTiny(n: number): string {
+  if (n >= 99_500) return `${Math.round(n / 10_000)}만`
+  if (n >= 9_950) return `${(n / 10_000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}만`
+  if (n >= 950) return `${Math.round(n / 1_000)}천`
+  return String(Math.round(n))
 }
