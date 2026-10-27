@@ -1,20 +1,23 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CATEGORY_ICON, CATEGORY_LABEL, formatKrw, formatMoney, summarize } from '../lib/money'
 import { formatShort, todayIso } from '../lib/dates'
 import { useMoney } from '../lib/useData'
 import { useTrip } from '../lib/useTrip'
 import SpendSummaryCard from '../components/SpendSummaryCard'
+import SpendDonut from '../components/SpendDonut'
+import { byCategory, byCountry } from '../lib/stats'
 
 export default function MoneyPage() {
   const { trip, days, loading } = useTrip()
   const { expenses, methods } = useMoney()
+  const [split, setSplit] = useState<'category' | 'country'>('category')
   if (loading || !trip) return null
 
   const summary = summarize(trip, expenses, todayIso(), days.length)
   const methodName = new Map(methods.map((m) => [m.id, m.name]))
   const byDate = new Map<string, typeof expenses>()
   for (const e of expenses) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e])
-  const maxCat = summary.byCategory[0]?.krw ?? 0
 
   return (
     <div className="page">
@@ -27,18 +30,16 @@ export default function MoneyPage() {
 
       <Link to="/money/new" className="btn primary wide">+ 지출 기록</Link>
 
-      {summary.byCategory.length > 0 && (
-        <section className="card">
-          <h2>어디에 썼나</h2>
-          <ul className="cat-list">
-            {summary.byCategory.map((c) => (
-              <li key={c.category}>
-                <span>{CATEGORY_ICON[c.category]} {CATEGORY_LABEL[c.category]}</span>
-                <span className="bar"><i style={{ width: `${maxCat ? (c.krw / maxCat) * 100 : 0}%` }} /></span>
-                <span className="num">{formatKrw(c.krw)}</span>
-              </li>
-            ))}
-          </ul>
+      {expenses.length > 0 && (
+        <section className="card donut-card">
+          <div className="ds-head">
+            <h2>어디에 썼나</h2>
+            <div className="seg" role="tablist">
+              <button role="tab" aria-selected={split === 'category'} className={split === 'category' ? 'on' : ''} onClick={() => setSplit('category')}>항목별</button>
+              <button role="tab" aria-selected={split === 'country'} className={split === 'country' ? 'on' : ''} onClick={() => setSplit('country')}>나라별</button>
+            </div>
+          </div>
+          <SpendDonut key={split} slices={split === 'category' ? byCategory(expenses) : byCountry(expenses, trip, days)} />
         </section>
       )}
 

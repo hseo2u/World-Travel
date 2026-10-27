@@ -8,6 +8,7 @@ import { parseCities } from '../lib/importPlan'
 import { TRANSPORT_LABEL } from '../lib/route'
 import DayStops from '../components/DayStops'
 import type { Transport } from '../types'
+import { useLeaveGuard } from '../components/useLeaveGuard'
 
 const TRANSPORTS = Object.keys(TRANSPORT_LABEL) as Transport[]
 
@@ -22,6 +23,7 @@ export default function DayPage() {
     content: day.content, lodging: day.lodging, notes: day.notes, buffer: day.buffer,
   }
   const { draft: f, set, dirty } = useDraft(saved, day?.id ?? '')
+  const leave = useLeaveGuard(dirty)
 
   if (loading || !trip) return null
   if (!day) return <div className="page"><p>이 Day를 찾을 수 없어요.</p><Link to="/plan">계획으로</Link></div>
@@ -32,6 +34,7 @@ export default function DayPage() {
   async function save() {
     const { route: _route, ...rest } = form
     await db.days.update(day!.id, { ...rest, cities, transport: cities.length > 1 ? form.transport : undefined })
+    leave.release()
     navigate('/plan')
   }
 
@@ -67,11 +70,13 @@ export default function DayPage() {
       await db.stops.where('dayId').equals(day!.id).delete()
     })
     await renumberDays(TRIP_ID)
+    leave.release()
     navigate('/plan')
   }
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/plan')} aria-label="뒤로">←</button>
         <h1>Day {day.order + 1}</h1>

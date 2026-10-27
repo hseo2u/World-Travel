@@ -120,6 +120,8 @@ export interface Rate {
   currency: string
   krwPerUnit: number
   updated: string
+  /** auto: the daily feed; exchange: from a recorded exchange; manual: typed in. Older rows have none. */
+  source?: 'auto' | 'exchange' | 'manual'
 }
 
 export interface PackItem {

@@ -6,6 +6,7 @@ import { searchPlaces, type PlaceHit } from '../lib/nearby'
 import { parseGoogleMaps, STOP_KIND_ICON, STOP_KIND_LABEL } from '../lib/stops'
 import { useTrip } from '../lib/useTrip'
 import type { Day, PlanStop, StopKind } from '../types'
+import { useLeaveGuard } from '../components/useLeaveGuard'
 
 const KINDS = Object.keys(STOP_KIND_LABEL) as StopKind[]
 
@@ -37,6 +38,11 @@ function StopEditor({ initial, isNew, day }: { initial: PlanStop; isNew: boolean
   const set = (patch: Partial<PlanStop>) => setS({ ...s, ...patch })
   const city = day.cities.at(-1) ?? ''
   const back = () => navigate(`/plan/${day.id}`)
+  const leave = useLeaveGuard(JSON.stringify(s) !== JSON.stringify(initial))
+  const done = () => {
+    leave.release()
+    back()
+  }
 
   async function search() {
     if (!query.trim()) return
@@ -67,17 +73,18 @@ function StopEditor({ initial, isNew, day }: { initial: PlanStop; isNew: boolean
 
   async function save() {
     await db.stops.put({ ...s, name: s.name.trim() })
-    back()
+    done()
   }
 
   async function remove() {
     if (!confirmDelete) return setConfirmDelete(true)
     await db.stops.delete(s.id)
-    back()
+    done()
   }
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={back} aria-label="닫기">✕</button>
         <h1>{isNew ? 'Day ' + (day.order + 1) + ' 장소 추가' : s.name || '장소'}</h1>

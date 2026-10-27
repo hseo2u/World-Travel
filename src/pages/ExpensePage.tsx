@@ -6,6 +6,7 @@ import { CATEGORY_ICON, CATEGORY_LABEL, CURRENCIES, currencyOf, formatKrw, krwPe
 import { useMoney } from '../lib/useData'
 import { useTrip } from '../lib/useTrip'
 import type { Expense, ExpenseCategory } from '../types'
+import { useLeaveGuard } from '../components/useLeaveGuard'
 
 const CATEGORIES = Object.keys(CATEGORY_LABEL) as ExpenseCategory[]
 
@@ -17,12 +18,18 @@ export default function ExpensePage() {
   const { trip, days, loading } = useTrip()
   const { expenses, methods, rates } = useMoney()
   const [draft, setDraft] = useState<Expense | undefined>()
+  const [start, setStart] = useState<Expense | undefined>()
+  const leave = useLeaveGuard(!!draft && JSON.stringify(draft) !== JSON.stringify(start))
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     if (loading || !trip || draft) return
     if (!isNew) {
-      void db.expenses.get(expenseId ?? '').then((e) => e && setDraft(e))
+      void db.expenses.get(expenseId ?? '').then((e) => {
+        if (!e) return
+        setDraft(e)
+        setStart(e)
+      })
       return
     }
     const today = todayIso()
@@ -30,12 +37,14 @@ export default function ExpensePage() {
     const last = expenses[0]
     // The packing list links here with the item already filled in.
     const category = params.get('category')
-    setDraft({
+    const fresh: Expense = {
       id: newId(), tripId: TRIP_ID, date: today, amount: 0,
       currency: (todayDay && currencyOf(todayDay.country)) ?? last?.currency ?? 'KRW',
       krw: 0, category: category && category in CATEGORY_LABEL ? (category as ExpenseCategory) : 'food',
       payMethodId: last?.payMethodId ?? methods[0]?.id ?? '', memo: params.get('memo') ?? '',
-    })
+    }
+    setDraft(fresh)
+    setStart(fresh)
   }, [loading, trip, isNew, expenseId, draft, days, expenses, methods, params])
 
   if (loading || !trip || !draft) return null
@@ -48,17 +57,20 @@ export default function ExpensePage() {
     const old = isNew ? undefined : await db.expenses.get(draft.id)
     const repriced = !old || old.amount !== draft.amount || old.currency !== draft.currency
     await db.expenses.put({ ...draft, krw: repriced ? Math.round(draft.amount * rate) : old.krw })
+    leave.release()
     navigate('/money')
   }
 
   async function remove() {
     if (!confirmDelete) return setConfirmDelete(true)
     await db.expenses.delete(draft!.id)
+    leave.release()
     navigate('/money')
   }
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/money')} aria-label="뒤로">←</button>
         <h1>{isNew ? '지출 기록' : '지출 수정'}</h1>

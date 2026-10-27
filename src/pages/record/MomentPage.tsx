@@ -9,6 +9,7 @@ import { savePhotos } from '../../lib/photos'
 import { whereOn } from '../../lib/records'
 import { useTrip } from '../../lib/useTrip'
 import type { Day, Moment, Trip } from '../../types'
+import { useLeaveGuard } from '../../components/useLeaveGuard'
 
 function nowTime(): string {
   return new Date().toTimeString().slice(0, 5)
@@ -47,6 +48,11 @@ function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolea
   const set = (patch: Partial<Moment>) => setM({ ...m, ...patch })
   const cities = [...new Set(days.flatMap((d) => d.cities))]
   const back = () => navigate(`/record/day/${m.date}`)
+  const leave = useLeaveGuard(JSON.stringify(m) !== JSON.stringify(initial), () => db.photos.bulkDelete(added))
+  const done = () => {
+    leave.release()
+    back()
+  }
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length) return
@@ -100,13 +106,11 @@ function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolea
       await db.moments.put({ ...m, place: m.place.trim() })
       await db.photos.bulkDelete(removed)
     })
-    back()
+    done()
   }
 
-  async function cancel() {
-    await db.photos.bulkDelete(added)
-    back()
-  }
+  // Leaving with changes asks first, and drops the photos added here.
+  const cancel = back
 
   async function remove() {
     if (!confirmDelete) return setConfirmDelete(true)
@@ -114,11 +118,12 @@ function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolea
       await db.moments.delete(m.id)
       await db.photos.bulkDelete([...new Set([...initial.photoIds, ...added])])
     })
-    back()
+    done()
   }
 
   return (
     <div className="page record">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={cancel} aria-label="닫기">✕</button>
         <h1>{isNew ? '새 기록' : m.place || '그날 사진'}</h1>

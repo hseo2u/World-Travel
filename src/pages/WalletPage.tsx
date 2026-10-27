@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { db, newId, TRIP_ID } from '../db'
 import { formatShort, todayIso } from '../lib/dates'
+import { KEEP_OWN_DAYS, refreshRates } from '../lib/rates'
 import { cashBalances, CURRENCIES, formatMoney, krwPerUnit, rateFromExchange } from '../lib/money'
 import { useMoney } from '../lib/useData'
-import type { PayKind } from '../types'
+import type { PayKind, Rate } from '../types'
 
 export default function WalletPage() {
+  const [rateMsg, setRateMsg] = useState('')
   const navigate = useNavigate()
   const { expenses, methods, exchanges, rates } = useMoney()
   const [name, setName] = useState('')
@@ -31,7 +33,7 @@ export default function WalletPage() {
     await db.transaction('rw', db.exchanges, db.rates, async () => {
       await db.exchanges.add(record)
       // The rate actually received is better than any estimate.
-      await db.rates.put({ currency: ex.toCurrency, krwPerUnit: rateFromExchange(record, rates), updated: record.date })
+      await db.rates.put({ currency: ex.toCurrency, krwPerUnit: rateFromExchange(record, rates), updated: record.date, source: 'exchange' })
     })
     setEx({ ...ex, fromAmount: '', toAmount: '', place: '' })
   }
@@ -110,16 +112,20 @@ export default function WalletPage() {
       </section>
 
       <section className="card">
-        <h2>환율 (1단위 = 원)</h2>
-        <p className="muted">환전을 기록하면 받은 환율로 바뀌어요. 처음 값은 대략적인 추정치라 직접 고쳐도 돼요.</p>
+        <div className="ds-head">
+          <h2>환율 (1단위 = 원)</h2>
+          <button className="btn small" onClick={async () => setRateMsg((await refreshRates(true)) ? '오늘 환율로 바꿨어요.' : '지금은 환율을 받아오지 못했어요.')}>새로 받기</button>
+        </div>
+        {rateMsg && <p className="muted" role="status">{rateMsg}</p>}
+        <p className="muted">인터넷이 되면 하루 한 번 환율을 새로 받아와요. 환전을 기록하거나 직접 고친 값은 {KEEP_OWN_DAYS}일 동안 그대로 쓰고, 그 뒤엔 다시 자동 환율로 돌아가요.</p>
         <ul className="plain-list">
           {usedCurrencies.map((c) => (
             <li key={c}>
-              <span>{c}</span>
+              <span>{c} <span className="muted rate-src">{rateNote(rates.find((r) => r.currency === c))}</span></span>
               <input
                 id={`rate-${c}`} className="rate-input" type="number" inputMode="decimal"
                 key={krwPerUnit(c, rates)} defaultValue={Math.round(krwPerUnit(c, rates) * 100) / 100}
-                onBlur={(e) => Number(e.target.value) > 0 && db.rates.put({ currency: c, krwPerUnit: Number(e.target.value), updated: todayIso() })}
+                onBlur={(e) => Number(e.target.value) > 0 && db.rates.put({ currency: c, krwPerUnit: Number(e.target.value), updated: todayIso(), source: 'manual' })}
               />
             </li>
           ))}
@@ -127,4 +133,12 @@ export default function WalletPage() {
       </section>
     </div>
   )
+}
+
+function rateNote(r: Rate | undefined): string {
+  if (!r) return '추정치'
+  const when = formatShort(r.updated)
+  if (r.source === 'auto') return `자동 · ${when}`
+  if (r.source === 'exchange') return `환전 · ${when}`
+  return `직접 · ${when}`
 }

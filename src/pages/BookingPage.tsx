@@ -11,6 +11,7 @@ import { useDraft } from '../lib/useDraft'
 import { useMoney } from '../lib/useData'
 import { useTrip } from '../lib/useTrip'
 import type { Booking, BookingKind, BookingStatus, ExpenseCategory, FlightInfo } from '../types'
+import { useLeaveGuard } from '../components/useLeaveGuard'
 
 const VIA = ['Hostelworld', 'Booking.com', 'Agoda', 'Airbnb', '항공사 홈페이지', 'Skyscanner', 'Busbud', 'Omio', 'Trainline', 'GetYourGuide', 'Klook', '현장 결제']
 const STATUS: { s: BookingStatus; label: string }[] = [
@@ -36,6 +37,8 @@ export default function BookingPage() {
   [firstDayId, flightKind])
   const stored = useLiveQuery(async () => isNew ? null : (await db.bookings.get(bookingId)) ?? null, [bookingId])
   const { draft, set: save, dirty } = useDraft(isNew ? fresh : stored ?? undefined, bookingId)
+  // A new booking counts as changed once anything was typed into it.
+  const leave = useLeaveGuard(dirty)
   const linkedExpense = useLiveQuery(() => db.expenses.filter((e) => e.bookingId === draft?.id).first(), [draft?.id])
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [aligned, setAligned] = useState('')
@@ -47,11 +50,13 @@ export default function BookingPage() {
   /** Writes the draft. A new booking then gets its own address so later saves update it. */
   async function persist() {
     await db.bookings.put(b)
+    leave.release()
     if (isNew) navigate(`/book/${b.id}`, { replace: true })
   }
 
   async function commit() {
     await db.bookings.put(b)
+    leave.release()
     navigate('/book')
   }
 
@@ -85,6 +90,7 @@ export default function BookingPage() {
   async function remove() {
     if (!confirmDelete) return setConfirmDelete(true)
     if (!isNew) await db.bookings.delete(b.id)
+    leave.release()
     navigate('/book')
   }
 
@@ -97,6 +103,7 @@ export default function BookingPage() {
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/book')} aria-label="뒤로">←</button>
         <h1>{KIND_LABEL[b.kind]} 예약</h1>

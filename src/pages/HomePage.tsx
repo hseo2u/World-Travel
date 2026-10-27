@@ -11,6 +11,10 @@ import { countryCode } from '../lib/geo'
 import { countryStays } from '../lib/entry'
 import { useBookingSync, useBookings, useMoney } from '../lib/useData'
 import { db, TRIP_ID } from '../db'
+import TodayCard from '../components/TodayCard'
+import { todayInfo } from '../lib/today'
+import { BACKUP_KV, daysSince } from '../lib/backup'
+import { useKv } from '../lib/useKv'
 import type { Day } from '../types'
 
 function routeText(d: Day): string {
@@ -22,11 +26,8 @@ export default function HomePage() {
   const { expenses } = useMoney()
   const bookings = useBookings()
   const pack = useLiveQuery(() => db.packItems.where('tripId').equals(TRIP_ID).toArray(), [], [])
-  const stopCounts = useLiveQuery(async () => {
-    const counts = new Map<string, number>()
-    for (const st of await db.stops.where('tripId').equals(TRIP_ID).toArray()) counts.set(st.dayId, (counts.get(st.dayId) ?? 0) + 1)
-    return counts
-  }, [], new Map<string, number>())
+  const allStops = useLiveQuery(() => db.stops.where('tripId').equals(TRIP_ID).toArray(), [], [])
+  const lastBackup = useKv(BACKUP_KV).at
   useBookingSync(trip, days)
   if (loading || !trip) return null
 
@@ -41,6 +42,10 @@ export default function HomePage() {
   const startDate = new Date(`${trip.startDate}T00:00:00`)
   const needsBooking = (d: Day) => bookings.some((b) => b.dayId === d.id && b.status === 'needed')
   const packDone = pack.filter((i) => i.done).length
+  const stopCounts = new Map<string, number>()
+  for (const st of allStops) stopCounts.set(st.dayId, (stopCounts.get(st.dayId) ?? 0) + 1)
+  const now = todayInfo(trip, days, bookings, allStops, today)
+  const backupAge = daysSince(lastBackup)
 
   const dayRow = (d: Day, label: string) => (
     <Link to={`/plan/${d.id}`} className="home-row">
@@ -106,10 +111,22 @@ export default function HomePage() {
         </section>
       ) : (
         <>
-          <section className="home-list">
-            {focus && dayRow(focus, untilStart > 0 ? '첫날' : '오늘')}
-            {nextMove && nextMove.id !== focus?.id && dayRow(nextMove, '다음 이동')}
-          </section>
+          {now ? (
+            <TodayCard trip={trip} info={now} />
+          ) : (
+            <section className="home-list">
+              {focus && dayRow(focus, untilStart > 0 ? '첫날' : '오늘')}
+              {nextMove && nextMove.id !== focus?.id && dayRow(nextMove, '다음 이동')}
+            </section>
+          )}
+
+          {(backupAge === undefined || backupAge >= 7) && (
+            <Link to="/more/backup" className="card link-card backup-nudge">
+              <div className="eyebrow">백업</div>
+              <span>{backupAge === undefined ? '아직 백업한 적이 없어요. 이 폰에만 저장돼 있어요.' : `마지막 백업이 ${backupAge}일 전이에요.`}</span>
+              <span className="pill">지금 백업</span>
+            </Link>
+          )}
 
           {due.length > 0 && (
             <Link to="/book" className="card link-card">
