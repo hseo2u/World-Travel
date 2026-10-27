@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { db, newId, TRIP_ID } from '../db'
 import type { Day, Trip } from '../types'
 import { plannedBookings, syncBookings } from './bookings'
+import { withWallet } from './money'
 
 export function useBookings() {
   return useLiveQuery(() => db.bookings.where('tripId').equals(TRIP_ID).toArray(), []) ?? []
@@ -10,7 +11,8 @@ export function useBookings() {
 
 export function useMoney() {
   const expenses = useLiveQuery(() => db.expenses.where('tripId').equals(TRIP_ID).reverse().sortBy('date'), []) ?? []
-  const methods = useLiveQuery(() => db.payMethods.toArray(), []) ?? []
+  const stored = useLiveQuery(() => db.payMethods.toArray(), [])
+  const methods = withWallet(stored ?? [])
   const exchanges = useLiveQuery(() => db.exchanges.where('tripId').equals(TRIP_ID).reverse().sortBy('date'), []) ?? []
   const rates = useLiveQuery(() => db.rates.toArray(), []) ?? []
   const counts = useLiveQuery(() => db.cashCounts.where('tripId').equals(TRIP_ID).toArray(), []) ?? []

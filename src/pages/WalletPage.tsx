@@ -5,6 +5,7 @@ import { formatShort, todayIso } from '../lib/dates'
 import { KEEP_OWN_DAYS, refreshRates } from '../lib/rates'
 import { cashBalances, cashFlows, CURRENCIES, formatMoney, krwPerUnit, rateFromExchange } from '../lib/money'
 import { useMoney } from '../lib/useData'
+import CashBars from '../components/CashBars'
 import type { PayKind, Rate } from '../types'
 
 export default function WalletPage() {
@@ -58,20 +59,18 @@ export default function WalletPage() {
       <section className="card">
         <h2>지금 가진 현금</h2>
         {balances.length > 0 ? (
-          <ul className="plain-list cash-list">
-            {balances.map(([c, n]) => {
+          <CashBars
+            balances={balances}
+            rates={rates}
+            note={(c) => {
               const last = lastCount(c)
-              return (
-                <li key={c}>
-                  <span>
-                    <strong className={n < 0 ? 'over' : ''}>{formatMoney(Math.round(n * 100) / 100, c)}</strong>
-                    <span className="muted"> · {last ? `${formatShort(last.date)}에 ${formatMoney(last.amount, c)} 세어봄` : '환전·지출 기록으로 계산'}</span>
-                  </span>
-                  <button className="btn small" onClick={() => setCount({ amount: String(Math.max(0, Math.round(n * 100) / 100)), currency: c })}>고치기</button>
-                </li>
-              )
-            })}
-          </ul>
+              return last ? `${formatShort(last.date)}에 ${formatMoney(last.amount, c)} 세어봄` : '환전·지출 기록으로 계산'
+            }}
+            extra={(c) => {
+              const n = balances.find(([x]) => x === c)![1]
+              return <button className="btn small" onClick={() => setCount({ amount: String(Math.max(0, Math.round(n * 100) / 100)), currency: c })}>고치기</button>
+            }}
+          />
         ) : (
           <p className="muted">아직 적어둔 현금이 없어요.</p>
         )}
@@ -91,7 +90,7 @@ export default function WalletPage() {
       <section className="card">
         <h2>결제수단</h2>
         <ul className="plain-list">
-          {methods.map((m) => (
+          {methods.filter((m) => m.id !== 'cash').map((m) => (
             <li key={m.id}>
               <span>{m.kind === 'cash' ? '💵' : '💳'} {m.name}{m.currency ? ` (${m.currency})` : ''}</span>
               <button className="btn small" onClick={() => db.payMethods.delete(m.id)}>삭제</button>

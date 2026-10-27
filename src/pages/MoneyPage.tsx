@@ -7,12 +7,14 @@ import { useTrip } from '../lib/useTrip'
 import SpendSummaryCard from '../components/SpendSummaryCard'
 import SpendDonut from '../components/SpendDonut'
 import SpendCalendar from '../components/SpendCalendar'
+import SpendPeriod from '../components/SpendPeriod'
+import CashBars from '../components/CashBars'
 import { byCategory, byCountry } from '../lib/stats'
 
 export default function MoneyPage() {
   const { trip, days, loading } = useTrip()
-  const { expenses, methods, exchanges, counts } = useMoney()
-  const [split, setSplit] = useState<'category' | 'country'>('category')
+  const { expenses, methods, exchanges, counts, rates } = useMoney()
+  const [split, setSplit] = useState<'category' | 'country' | 'period'>('category')
   const [picked, setPicked] = useState(todayIso)
   const [month, setMonth] = useState(() => todayIso().slice(0, 7))
   if (loading || !trip) return null
@@ -31,25 +33,26 @@ export default function MoneyPage() {
 
       <SpendSummaryCard trip={trip} summary={summary} />
 
-      <Link to="/money/wallet" className="card cash-strip">
-        <span className="muted">지갑 현금</span>
-        {cash.length > 0
-          ? cash.map(([c, n]) => <strong key={c} className={n < 0 ? 'over' : ''}>{formatMoney(Math.round(n * 100) / 100, c)}</strong>)
-          : <span>가진 현금 적어두기 ›</span>}
+      <Link to="/money/wallet" className="card link-card cash-card">
+        <div className="eyebrow">지갑 현금</div>
+        {cash.length > 0 ? <CashBars balances={cash} rates={rates} /> : <span>가진 현금 적어두기 ›</span>}
       </Link>
 
       <Link to="/money/new" className="btn primary wide">+ 지출 기록</Link>
 
-      {expenses.length > 0 && (
+      {(expenses.length > 0 || exchanges.length > 0) && (
         <section className="card donut-card">
           <div className="ds-head">
             <h2>어디에 썼나</h2>
             <div className="seg" role="tablist">
               <button role="tab" aria-selected={split === 'category'} className={split === 'category' ? 'on' : ''} onClick={() => setSplit('category')}>항목별</button>
               <button role="tab" aria-selected={split === 'country'} className={split === 'country' ? 'on' : ''} onClick={() => setSplit('country')}>나라별</button>
+              <button role="tab" aria-selected={split === 'period'} className={split === 'period' ? 'on' : ''} onClick={() => setSplit('period')}>기간별</button>
             </div>
           </div>
-          <SpendDonut key={split} slices={split === 'category' ? byCategory(expenses) : byCountry(expenses, trip, days)} />
+          {split === 'period'
+            ? <SpendPeriod trip={trip} expenses={expenses} exchanges={exchanges} />
+            : <SpendDonut key={split} slices={split === 'category' ? byCategory(expenses) : byCountry(expenses, trip, days)} />}
         </section>
       )}
 

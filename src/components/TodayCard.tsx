@@ -7,7 +7,7 @@ import type { TodayInfo } from '../lib/today'
 import type { Booking, Trip } from '../types'
 
 /** During the trip: tonight's bed, today's stops, the next move and who to call, on one card. */
-export default function TodayCard({ trip, info }: { trip: Trip; info: TodayInfo }) {
+export default function TodayCard({ trip, info, label = '오늘' }: { trip: Trip; info: TodayInfo; label?: string }) {
   const { day, stayStop, stayBooking, stops, move } = info
   const city = day.cities.at(-1) ?? ''
   const emergency = ENTRY[day.country]?.emergency.slice(0, 2) ?? []
@@ -15,12 +15,19 @@ export default function TodayCard({ trip, info }: { trip: Trip; info: TodayInfo 
   return (
     <section className="card today-card">
       <Link to={`/plan/${day.id}`} className="today-head">
-        <span className="eyebrow">오늘 · Day {day.order + 1} · {formatShort(dayDate(trip.startDate, day.order))}</span>
+        <span className="eyebrow">{label} · Day {day.order + 1} · {formatShort(dayDate(trip.startDate, day.order))}</span>
         <strong className="today-city">{day.cities.join(' → ') || day.country}</strong>
       </Link>
 
+      {day.content.trim() && (
+        <div className="today-block">
+          <div className="today-label">일정</div>
+          <p className="today-plan">{day.content.trim()}</p>
+        </div>
+      )}
+
       <div className="today-block">
-        <div className="today-label">오늘 밤 숙소</div>
+        <div className="today-label">{label === '오늘' ? '오늘 밤 숙소' : '그날 밤 숙소'}</div>
         {stayName ? (
           <div className="today-row">
             <span className="today-main">
@@ -36,7 +43,7 @@ export default function TodayCard({ trip, info }: { trip: Trip; info: TodayInfo 
 
       {stops.filter((s) => s.kind !== 'stay').length > 0 && (
         <div className="today-block">
-          <div className="today-label">오늘 갈 곳</div>
+          <div className="today-label">{label === '오늘' ? '오늘 갈 곳' : '갈 곳'}</div>
           <ol className="today-stops">
             {stops.map((s, i) => s.kind === 'stay' ? null : (
               <li key={s.id}>

@@ -15,7 +15,10 @@ const ITEMS = [
 export default function MorePage() {
   return (
     <div className="page">
-      <header className="page-head"><h1>기타</h1></header>
+      <header className="page-head">
+        <Link to="/" className="icon-btn" aria-label="홈으로">←</Link>
+        <h1>기타</h1>
+      </header>
       <ul className="more-list">
         {ITEMS.map((it) => (
           <li key={it.to}>

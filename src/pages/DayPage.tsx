@@ -3,10 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { db, newId, renumberDays, TRIP_ID } from '../db'
 import { useDraft } from '../lib/useDraft'
 import { useTrip } from '../lib/useTrip'
-import { dayDate, formatShort } from '../lib/dates'
+import { dayDate, formatShort, todayIso } from '../lib/dates'
 import { parseCities } from '../lib/importPlan'
 import { TRANSPORT_LABEL } from '../lib/route'
 import DayStops from '../components/DayStops'
+import DayRecord from '../components/DayRecord'
 import type { Transport } from '../types'
 import { useLeaveGuard } from '../components/useLeaveGuard'
 
@@ -29,6 +30,8 @@ export default function DayPage() {
   if (!day) return <div className="page"><p>이 Day를 찾을 수 없어요.</p><Link to="/plan">계획으로</Link></div>
 
   const form = f!
+  const date = dayDate(trip.startDate, day.order)
+  const recording = date <= todayIso()
   const cities = parseCities(form.route)
 
   async function save() {
@@ -80,7 +83,7 @@ export default function DayPage() {
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/plan')} aria-label="뒤로">←</button>
         <h1>Day {day.order + 1}</h1>
-        <span className="muted">{formatShort(dayDate(trip.startDate, day.order))}</span>
+        <span className="muted">{formatShort(date)}</span>
         <button className="btn primary small" onClick={save} disabled={!dirty}>저장</button>
       </header>
       {dirty && <p className="muted">저장을 눌러야 바뀐 내용이 반영돼요.</p>}
@@ -101,7 +104,8 @@ export default function DayPage() {
           </select>
         </label>
       )}
-      <DayStops day={day} prevDay={days.find((d) => d.order === day.order - 1)} />
+      <DayStops day={day} prevDay={days.find((d) => d.order === day.order - 1)} date={date} recording={recording} />
+      {recording && <DayRecord day={day} date={date} />}
 
       <label className="field">
         <span>내용</span>

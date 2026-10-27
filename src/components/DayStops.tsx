@@ -4,14 +4,28 @@ import { db, newId, TRIP_ID } from '../db'
 import { distanceKm, formatKm, formatMinutes, legEstimate } from '../lib/places'
 import { googlePlaceLink, googleRouteLink, STOP_KIND_LABEL } from '../lib/stops'
 import { useStops } from '../lib/useStops'
-import type { Day, PlanStop } from '../types'
+import { momentForStop, momentFromStop } from '../lib/records'
+import { savePhotos } from '../lib/photos'
+import { useMoments } from '../lib/useRecords'
+import Thumb from './Thumb'
+import type { Day, Moment, PlanStop } from '../types'
 
 // The map library is large, so the day map loads after the list.
 const DayMap = lazy(() => import('./DayMap'))
 
+interface Props {
+  day: Day
+  prevDay?: Day
+  /** YYYY-MM-DD of this day */
+  date: string
+  /** From the day itself on, each stop takes photos: the plan becomes the record. */
+  recording: boolean
+}
+
 /** The day's detailed plan: where to sleep and where to go, in order. */
-export default function DayStops({ day, prevDay }: { day: Day; prevDay?: Day }) {
+export default function DayStops({ day, prevDay, date, recording }: Props) {
   const stops = useStops(day.id)
+  const moments = useMoments().filter((m) => m.date === date || stops.some((s) => s.id === m.stopId))
   const prevStops = useStops(prevDay?.id)
   const city = day.cities.at(-1) ?? ''
   const route = googleRouteLink(stops, city)
@@ -56,6 +70,7 @@ export default function DayStops({ day, prevDay }: { day: Day; prevDay?: Day }) 
                 <button className="icon-btn small-icon" aria-label="위로" disabled={i === 0} onClick={() => swap(s, stops[i - 1])}>↑</button>
                 <button className="icon-btn small-icon" aria-label="아래로" disabled={i === stops.length - 1} onClick={() => swap(s, stops[i + 1])}>↓</button>
               </span>
+              {recording && <StopPhotos stop={s} day={day} date={date} moment={momentForStop(s, date, moments)} />}
             </li>
           </Fragment>
         ))}
@@ -65,6 +80,38 @@ export default function DayStops({ day, prevDay }: { day: Day; prevDay?: Day }) 
         {!hasStay && lastStay && <button className="btn" onClick={copyStay}>어제 숙소 그대로: {lastStay.name}</button>}
       </div>
     </section>
+  )
+}
+
+/** Photos taken at a stop. The first pick makes the record; tapping it opens stars and a caption. */
+function StopPhotos({ stop, day, date, moment }: { stop: PlanStop; day: Day; date: string; moment?: Moment }) {
+  async function add(files: FileList | null) {
+    if (!files?.length) return
+    const photos = await savePhotos(files, date)
+    if (moment) await db.moments.update(moment.id, { photoIds: [...moment.photoIds, ...photos.map((p) => p.id)], stopId: stop.id })
+    else await db.moments.add(momentFromStop(stop, date, photos, { city: day.cities.at(-1) ?? '', country: day.country }))
+  }
+  const picker = (
+    <input type="file" accept="image/*" multiple hidden onChange={(e) => { void add(e.target.files); e.target.value = '' }} />
+  )
+  if (!moment) {
+    return (
+      <label className="stop-photo-add" aria-label={`${stop.name} 사진 넣기`}>
+        📷 사진
+        {picker}
+      </label>
+    )
+  }
+  return (
+    <span className="stop-photos">
+      <Link to={`/record/m/${moment.id}`} className="stop-photo-strip" aria-label={`${stop.name} 기록 보기`}>
+        {moment.photoIds.slice(0, 3).map((id) => <Thumb key={id} id={id} className="stop-thumb" />)}
+        {moment.photoIds.length > 3 && <span className="stop-more">+{moment.photoIds.length - 3}</span>}
+        {moment.photoIds.length === 0 && <span className="muted">기록</span>}
+        {moment.rating > 0 && <span className="stop-stars">★{moment.rating}</span>}
+      </Link>
+      <label className="stop-photo-plus" aria-label={`${stop.name} 사진 더 넣기`}>+{picker}</label>
+    </span>
   )
 }
 

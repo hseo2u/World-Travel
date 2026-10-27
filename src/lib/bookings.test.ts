@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Booking, Day, Trip } from '../types'
 import { coverage, dueSoon, plannedBookings, syncBookings } from './bookings'
 import { alignFlight, matchFlightDay } from './flightAlign'
-import { cashBalances, rateFromExchange, summarize } from './money'
+import { cashBalances, rateFromExchange, summarize, WALLET_CASH, withWallet } from './money'
 
 const trip: Trip = { id: 'main', name: 't', startDate: '2027-01-12', budgetKrw: 15_000_000, mode: 'solo' }
 
@@ -133,6 +133,12 @@ describe('money', () => {
     expect(cashBalances(ex, [], methods, [{ ...counts[1], flowAt: -200 }]).get('USD')).toBe(1500)
     expect(cashBalances(later, [], methods, [counts[0], { ...counts[1], flowAt: -200 }]).get('USD')).toBe(1400)
     expect(cashBalances(later, [], methods, []).has('KRW')).toBe(false)
+  })
+
+  it('takes cash spending out of the counted wallet even with no cash method added', () => {
+    const count = { id: 'c', tripId: 'main', date: '2027-01-12', currency: 'USD', amount: 1500, flowAt: 0, at: 1 }
+    const spent = [{ id: 'x', tripId: 'main', date: '2027-01-12', amount: 30, currency: 'USD', krw: 0, category: 'food' as const, payMethodId: WALLET_CASH.id, memo: '' }]
+    expect(cashBalances([], spent, withWallet([]), [count]).get('USD')).toBe(1470)
   })
 
   it('splits spending before and during the trip', () => {

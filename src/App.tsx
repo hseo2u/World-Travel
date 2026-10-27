@@ -32,13 +32,13 @@ import { refreshRates } from './lib/rates'
 // The map library is large, so it loads only when the map tab opens.
 const MapPage = lazy(() => import('./pages/MapPage'))
 
+// Home sits in the middle; 기타 opens from the home screen's top corner.
 const TABS: { to: string; label: string; icon: IconName; end?: boolean }[] = [
-  { to: '/', label: '홈', icon: 'home', end: true },
   { to: '/plan', label: '계획', icon: 'plan' },
   { to: '/record', label: '기록', icon: 'record' },
+  { to: '/', label: '홈', icon: 'home', end: true },
   { to: '/book', label: '예약', icon: 'book' },
   { to: '/money', label: '가계부', icon: 'money' },
-  { to: '/more', label: '기타', icon: 'more' },
 ]
 
 // A data router, so edit screens can hold the user back from leaving unsaved changes.
@@ -94,7 +94,7 @@ function Shell() {
       </main>
       <nav className="tabbar">
         {TABS.map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+          <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab${t.to === '/' ? ' tab-home' : ''}${isActive ? ' active' : ''}`}>
             {({ isActive }) => (
               <>
                 <span className="tab-icon"><Icon name={t.icon} bold={isActive} /></span>

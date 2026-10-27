@@ -62,6 +62,13 @@ export function rateFromExchange(ex: Exchange, rates: Rate[]): number {
   return (ex.fromAmount * krwPerUnit(ex.fromCurrency, rates)) / ex.toAmount
 }
 
+/** Always offered when no cash wallet was added, so cash spending can leave the wallet. */
+export const WALLET_CASH: PayMethod = { id: 'cash', name: '현금', kind: 'cash' }
+
+export function withWallet(methods: PayMethod[]): PayMethod[] {
+  return methods.some((m) => m.kind === 'cash') ? methods : [WALLET_CASH, ...methods]
+}
+
 /** Money moved by records alone: exchanged in, minus exchanged out, minus cash spent. */
 export function cashFlows(exchanges: Exchange[], expenses: Expense[], methods: PayMethod[]): Map<string, number> {
   const out = new Map<string, number>()
@@ -70,7 +77,7 @@ export function cashFlows(exchanges: Exchange[], expenses: Expense[], methods: P
     add(ex.toCurrency, ex.toAmount)
     add(ex.fromCurrency, -ex.fromAmount)
   }
-  const cashIds = new Set(methods.filter((m) => m.kind === 'cash').map((m) => m.id))
+  const cashIds = new Set([WALLET_CASH.id, ...methods.filter((m) => m.kind === 'cash').map((m) => m.id)])
   for (const e of expenses) if (cashIds.has(e.payMethodId)) add(e.currency, -e.amount)
   return out
 }

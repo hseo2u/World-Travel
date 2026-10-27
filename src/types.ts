@@ -197,6 +197,8 @@ export interface Moment {
   rating: number
   caption: string
   photoIds: string[]
+  /** The plan stop this record belongs to, so a planned place is never typed twice */
+  stopId?: string
 }
 
 export type StopKind = 'stay' | 'sight' | 'food' | 'move' | 'etc'

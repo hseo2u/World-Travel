@@ -45,6 +45,8 @@ export default function HomePage() {
   const stopCounts = new Map<string, number>()
   for (const st of allStops) stopCounts.set(st.dayId, (stopCounts.get(st.dayId) ?? 0) + 1)
   const now = todayInfo(trip, days, bookings, allStops, today)
+  // Before departure the home shows the first day; from then on it moves on by itself each day.
+  const first = untilStart > 0 ? todayInfo(trip, days, bookings, allStops, trip.startDate) : undefined
   const backupAge = daysSince(lastBackup)
 
   const dayRow = (d: Day, label: string) => (
@@ -66,6 +68,7 @@ export default function HomePage() {
     <div className="page home">
       <header className="page-head">
         <h1>{trip.name}</h1>
+        <Link to="/more" className="icon-btn round" aria-label="기타"><Icon name="more" /></Link>
         <Link to="/settings" className="icon-btn round" aria-label="설정"><Icon name="settings" /></Link>
       </header>
 
@@ -113,6 +116,8 @@ export default function HomePage() {
         <>
           {now ? (
             <TodayCard trip={trip} info={now} />
+          ) : first ? (
+            <TodayCard trip={trip} info={first} label="첫날 일정" />
           ) : (
             <section className="home-list">
               {focus && dayRow(focus, untilStart > 0 ? '첫날' : '오늘')}

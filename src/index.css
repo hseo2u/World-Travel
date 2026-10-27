@@ -439,5 +439,42 @@ p { line-height: 1.5; }
 .cal-day.on { border-color: var(--text); }
 .cal-num { font-size: 13px; font-variant-numeric: tabular-nums; }
 .cal-amt { font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; white-space: nowrap; }
-.cash-strip { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding: 12px 16px; color: var(--text); text-decoration: none; font-variant-numeric: tabular-nums; }
-.cash-list li > span { min-width: 0; }
+
+/* Cash per currency */
+.cash-card { display: flex; flex-direction: column; gap: 8px; color: var(--text); text-decoration: none; }
+.cash-bars { display: flex; flex-direction: column; gap: 10px; }
+.cash-bars ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.cash-total strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.cash-bar-row { display: flex; align-items: center; gap: 10px; }
+.cash-cur { flex: none; width: 40px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.cash-bar-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.cash-bar-top { display: flex; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+.cash-bar-top .muted { font-size: 13px; }
+.cash-note { font-size: 12px; }
+
+/* Spending over a chosen period */
+.period { display: flex; flex-direction: column; gap: 12px; }
+.period-range { display: flex; align-items: center; gap: 8px; }
+.period-range input { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 15px; color: var(--text); }
+.period-sum { display: flex; flex-direction: column; gap: 2px; }
+.period-sum strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+.period-sum .muted { font-size: 13px; }
+.period-block { display: flex; flex-direction: column; gap: 6px; }
+.period-row { display: flex; justify-content: space-between; gap: 8px; width: 100%; color: var(--text); text-decoration: none; }
+.period-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A plan stop's photos, once its day has come */
+.stop-row { flex-wrap: wrap; }
+.stop-photo-add, .stop-photos { flex-basis: 100%; margin-left: 32px; }
+.stop-photo-add { display: inline-flex; align-self: flex-start; flex-basis: auto; padding: 5px 12px; border-radius: 999px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; cursor: pointer; }
+.stop-photos { display: flex; align-items: center; gap: 6px; }
+.stop-photo-strip { display: flex; align-items: center; gap: 4px; color: var(--text); text-decoration: none; min-width: 0; }
+.stop-thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--surface); }
+.stop-more { font-size: 13px; color: var(--muted); padding: 0 4px; }
+.stop-stars { font-size: 12px; color: var(--accent); padding-left: 4px; }
+.stop-photo-plus { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 8px; border: 1px dashed var(--line); color: var(--muted); font-size: 22px; cursor: pointer; }
+
+/* Home in the middle of the tab bar, a step forward from the rest */
+.tab-home .tab-icon { width: 46px; height: 46px; margin-top: -14px; border-radius: 50%; align-items: center; justify-content: center; background: var(--surface); color: var(--text); border: 1px solid var(--line); }
+.tab-home.active .tab-icon { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.today-plan { margin: 0; white-space: pre-line; }

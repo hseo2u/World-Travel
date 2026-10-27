@@ -72,7 +72,13 @@ function StopEditor({ initial, isNew, day }: { initial: PlanStop; isNew: boolean
   }
 
   async function save() {
-    await db.stops.put({ ...s, name: s.name.trim() })
+    const name = s.name.trim()
+    await db.transaction('rw', db.stops, db.moments, async () => {
+      await db.stops.put({ ...s, name })
+      // A record kept on this stop follows its new name and place.
+      const linked = await db.moments.filter((m) => m.stopId === s.id).toArray()
+      for (const m of linked) await db.moments.update(m.id, { place: name, lat: s.lat, lng: s.lng })
+    })
     done()
   }
 
