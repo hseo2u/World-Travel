@@ -6,6 +6,9 @@ import { addPin, declutter, maplibregl, openMap, pinElement } from '../lib/mapba
 import { collectPins, type SavedPin } from '../lib/places'
 import { useMoments } from '../lib/useRecords'
 import { useTrip } from '../lib/useTrip'
+import { locateStops } from '../lib/locate'
+import { buildRoute } from '../lib/route'
+import { builtinPlace, cityKey } from '../lib/geo'
 
 type Only = 'all' | 'record' | 'plan'
 
@@ -21,10 +24,25 @@ export default function PlacesMap({ tabs, only: initial = 'all' }: { tabs: React
   const map = useRef<maplibregl.Map | null>(null)
   const markers = useRef<maplibregl.Marker[]>([])
   const [styleVersion, setStyleVersion] = useState(0)
+  const [locating, setLocating] = useState('')
+  const saved = useLiveQuery(() => db.places.toArray(), [], [])
 
   const all = useMemo(() => (trip ? collectPins(trip, days, stops, moments) : []), [trip, days, stops, moments])
   const countries = [...new Set(all.map((p) => p.country).filter(Boolean))]
   const shown = all.filter((p) => (only === 'all' || p.source === only) && (!country || p.country === country))
+  // Stops saved by name only have no position yet.
+  const unplaced = stops.filter((s) => s.lat === undefined && s.name.trim())
+  // The plan's cities sit underneath, so the map is never empty and shows the whole route.
+  const cityPins = useMemo(() => {
+    const byKey = new Map(saved.map((p) => [p.key, p]))
+    const seen = new Set<string>()
+    return buildRoute(days).stops.flatMap((st) => {
+      const p = byKey.get(cityKey(st.city)) ?? builtinPlace(st.city, st.country)
+      if (!p || seen.has(p.key) || (country && st.country !== country)) return []
+      seen.add(p.key)
+      return [{ name: st.city, lat: p.lat, lng: p.lng }]
+    })
+  }, [days, saved, country])
   const counts = { record: all.filter((p) => p.source === 'record').length, plan: all.filter((p) => p.source === 'plan').length }
 
   useEffect(() => {
@@ -41,14 +59,24 @@ export default function PlacesMap({ tabs, only: initial = 'all' }: { tabs: React
     markers.current.forEach((mk) => mk.remove())
     // Records first so their names win over planned places when they collide.
     const ordered = [...shown].sort((a, b) => (a.source === b.source ? 0 : a.source === 'record' ? -1 : 1))
-    markers.current = ordered.map((p) => addPin(m, [p.lng, p.lat], pinElement(p.name, tone(p)), popup(p, navigate)))
-    if (shown.length) {
-      const b = shown.reduce((acc, p) => acc.extend([p.lng, p.lat]), new maplibregl.LngLatBounds([shown[0].lng, shown[0].lat], [shown[0].lng, shown[0].lat]))
+    markers.current = [
+      ...ordered.map((p) => addPin(m, [p.lng, p.lat], pinElement(p.name, tone(p)), popup(p, navigate))),
+      ...cityPins.map((c) => addPin(m, [c.lng, c.lat], pinElement(c.name, 'city'), c.name)),
+    ]
+    const fit = shown.length ? shown : cityPins
+    if (fit.length) {
+      const b = fit.reduce((acc, p) => acc.extend([p.lng, p.lat]), new maplibregl.LngLatBounds([fit[0].lng, fit[0].lat], [fit[0].lng, fit[0].lat]))
       m.fitBounds(b, { padding: { top: 60, bottom: 110, left: 30, right: 110 }, maxZoom: 14, duration: 500 })
     }
     return declutter(m, () => markers.current.map((mk) => mk.getElement()))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [styleVersion, JSON.stringify(shown.map((p) => p.id))])
+  }, [styleVersion, JSON.stringify(shown.map((p) => p.id)), cityPins])
+
+  async function locate() {
+    setLocating(`위치 찾는 중… 0/${unplaced.length}`)
+    const found = await locateStops(unplaced, days, (n) => setLocating(`위치 찾는 중… ${n}/${unplaced.length}`))
+    setLocating(found ? `${found}곳을 지도에 올렸어요.` : '위치를 못 찾았어요. 인터넷을 확인하거나 장소에 구글맵 링크를 붙여넣어 주세요.')
+  }
 
   return (
     <div className="map-page">
@@ -72,9 +100,16 @@ export default function PlacesMap({ tabs, only: initial = 'all' }: { tabs: React
         <span><i className="dot plan" />갈 곳</span>
         <span><i className="dot stay" />숙소</span>
       </div>
-      {all.length === 0 && (
+      {unplaced.length > 0 && (
         <div className="map-missing">
-          아직 위치가 있는 장소가 없어요. 계획의 Day에 장소를 넣거나 기록에서 장소를 고르면 여기에 모여요.
+          이름만 있고 위치가 없는 장소 {unplaced.length}곳은 지도에 못 찍었어요.
+          <button className="btn small" disabled={locating.startsWith('위치 찾는')} onClick={locate}>위치 찾기</button>
+        </div>
+      )}
+      {locating && <div className="map-missing" role="status">{locating}</div>}
+      {all.length === 0 && unplaced.length === 0 && (
+        <div className="map-missing">
+          아직 위치가 있는 장소가 없어서 계획한 도시만 보여요. 계획의 Day에 장소를 넣으면 여기에 모여요.
         </div>
       )}
     </div>

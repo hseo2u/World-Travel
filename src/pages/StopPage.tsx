@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, TRIP_ID } from '../db'
 import { searchPlaces, type PlaceHit } from '../lib/nearby'
+import { locateStop } from '../lib/locate'
 import { parseGoogleMaps, STOP_KIND_ICON, STOP_KIND_LABEL } from '../lib/stops'
 import { useTrip } from '../lib/useTrip'
 import type { Day, PlanStop, StopKind } from '../types'
@@ -79,6 +80,8 @@ function StopEditor({ initial, isNew, day }: { initial: PlanStop; isNew: boolean
       const linked = await db.moments.filter((m) => m.stopId === s.id).toArray()
       for (const m of linked) await db.moments.update(m.id, { place: name, lat: s.lat, lng: s.lng })
     })
+    // Saved by name only: look the place up in the background so it shows on the maps.
+    if (s.lat === undefined) void locateStop({ ...s, name }, day).catch(() => {})
     done()
   }
 
