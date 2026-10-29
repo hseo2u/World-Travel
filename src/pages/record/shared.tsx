@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 
 const VIEWS = [
   { to: '/record', label: '하루', end: true },
@@ -16,6 +16,7 @@ export function ZoomBar() {
       {VIEWS.map((v) => (
         <NavLink key={v.to} to={v.to} end={v.end} className={({ isActive }) => (isActive || (onDay && v.end) ? 'zoom active' : 'zoom')}>{v.label}</NavLink>
       ))}
+      <Link to="/map?view=places&only=record" className="zoom">지도</Link>
     </nav>
   )
 }

@@ -5,6 +5,7 @@ import { db } from '../../db'
 import { useDraft } from '../../lib/useDraft'
 import { useKv } from '../../lib/useKv'
 import { useTrip } from '../../lib/useTrip'
+import { useLeaveGuard } from '../../components/useLeaveGuard'
 
 export default function EntryPage() {
   const navigate = useNavigate()
@@ -12,10 +13,12 @@ export default function EntryPage() {
   const saved = useKv('entry-memo')
   const { draft: memo = {}, set, dirty } = useDraft(saved, 'entry-memo')
   const setMemo = (country: string, v: string) => set({ [country]: v })
+  const leave = useLeaveGuard(dirty)
   if (loading || !trip) return null
 
   async function commit() {
     await db.kv.put({ key: 'entry-memo', value: memo })
+    leave.release()
     navigate('/more')
   }
 
@@ -28,6 +31,7 @@ export default function EntryPage() {
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/more')} aria-label="뒤로">←</button>
         <h1>나라별 입국 정보</h1>

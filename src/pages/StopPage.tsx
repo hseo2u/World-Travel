@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId, TRIP_ID } from '../db'
 import { searchPlaces, type PlaceHit } from '../lib/nearby'
+import { locateStop } from '../lib/locate'
 import { parseGoogleMaps, STOP_KIND_ICON, STOP_KIND_LABEL } from '../lib/stops'
 import { useTrip } from '../lib/useTrip'
 import type { Day, PlanStop, StopKind } from '../types'
+import { useLeaveGuard } from '../components/useLeaveGuard'
 
 const KINDS = Object.keys(STOP_KIND_LABEL) as StopKind[]
 
@@ -37,6 +39,11 @@ function StopEditor({ initial, isNew, day }: { initial: PlanStop; isNew: boolean
   const set = (patch: Partial<PlanStop>) => setS({ ...s, ...patch })
   const city = day.cities.at(-1) ?? ''
   const back = () => navigate(`/plan/${day.id}`)
+  const leave = useLeaveGuard(JSON.stringify(s) !== JSON.stringify(initial))
+  const done = () => {
+    leave.release()
+    back()
+  }
 
   async function search() {
     if (!query.trim()) return
@@ -66,18 +73,27 @@ function StopEditor({ initial, isNew, day }: { initial: PlanStop; isNew: boolean
   }
 
   async function save() {
-    await db.stops.put({ ...s, name: s.name.trim() })
-    back()
+    const name = s.name.trim()
+    await db.transaction('rw', db.stops, db.moments, async () => {
+      await db.stops.put({ ...s, name })
+      // A record kept on this stop follows its new name and place.
+      const linked = await db.moments.filter((m) => m.stopId === s.id).toArray()
+      for (const m of linked) await db.moments.update(m.id, { place: name, lat: s.lat, lng: s.lng })
+    })
+    // Saved by name only: look the place up in the background so it shows on the maps.
+    if (s.lat === undefined) void locateStop({ ...s, name }, day).catch(() => {})
+    done()
   }
 
   async function remove() {
     if (!confirmDelete) return setConfirmDelete(true)
     await db.stops.delete(s.id)
-    back()
+    done()
   }
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={back} aria-label="닫기">✕</button>
         <h1>{isNew ? 'Day ' + (day.order + 1) + ' 장소 추가' : s.name || '장소'}</h1>

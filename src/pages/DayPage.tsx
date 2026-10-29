@@ -3,11 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { db, newId, renumberDays, TRIP_ID } from '../db'
 import { useDraft } from '../lib/useDraft'
 import { useTrip } from '../lib/useTrip'
-import { dayDate, formatShort } from '../lib/dates'
+import { dayDate, formatShort, todayIso } from '../lib/dates'
 import { parseCities } from '../lib/importPlan'
 import { TRANSPORT_LABEL } from '../lib/route'
 import DayStops from '../components/DayStops'
+import DayRecord from '../components/DayRecord'
 import type { Transport } from '../types'
+import { useLeaveGuard } from '../components/useLeaveGuard'
 
 const TRANSPORTS = Object.keys(TRANSPORT_LABEL) as Transport[]
 
@@ -22,16 +24,20 @@ export default function DayPage() {
     content: day.content, lodging: day.lodging, notes: day.notes, buffer: day.buffer,
   }
   const { draft: f, set, dirty } = useDraft(saved, day?.id ?? '')
+  const leave = useLeaveGuard(dirty)
 
   if (loading || !trip) return null
   if (!day) return <div className="page"><p>이 Day를 찾을 수 없어요.</p><Link to="/plan">계획으로</Link></div>
 
   const form = f!
+  const date = dayDate(trip.startDate, day.order)
+  const recording = date <= todayIso()
   const cities = parseCities(form.route)
 
   async function save() {
     const { route: _route, ...rest } = form
     await db.days.update(day!.id, { ...rest, cities, transport: cities.length > 1 ? form.transport : undefined })
+    leave.release()
     navigate('/plan')
   }
 
@@ -67,15 +73,17 @@ export default function DayPage() {
       await db.stops.where('dayId').equals(day!.id).delete()
     })
     await renumberDays(TRIP_ID)
+    leave.release()
     navigate('/plan')
   }
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/plan')} aria-label="뒤로">←</button>
         <h1>Day {day.order + 1}</h1>
-        <span className="muted">{formatShort(dayDate(trip.startDate, day.order))}</span>
+        <span className="muted">{formatShort(date)}</span>
         <button className="btn primary small" onClick={save} disabled={!dirty}>저장</button>
       </header>
       {dirty && <p className="muted">저장을 눌러야 바뀐 내용이 반영돼요.</p>}
@@ -96,7 +104,8 @@ export default function DayPage() {
           </select>
         </label>
       )}
-      <DayStops day={day} prevDay={days.find((d) => d.order === day.order - 1)} />
+      <DayStops day={day} prevDay={days.find((d) => d.order === day.order - 1)} date={date} recording={recording} />
+      {recording && <DayRecord day={day} date={date} />}
 
       <label className="field">
         <span>내용</span>

@@ -1,6 +1,6 @@
 import { newId, TRIP_ID } from '../db'
 import { daysBetween } from './dates'
-import type { Day, Moment, Photo, Trip } from '../types'
+import type { Day, Moment, Photo, PlanStop, Trip } from '../types'
 
 /** The plan's Day for a date, if the date falls inside the trip. */
 export function dayForDate(trip: Trip, days: Day[], date: string): Day | undefined {
@@ -106,4 +106,18 @@ export function fileIntoAlbums(photos: Photo[], moments: Moment[], where: (date:
     touched.set(date, next)
   }
   return [...touched.values()]
+}
+
+/** The record kept for a plan stop: linked by id, or an older one with the same name that day. */
+export function momentForStop(stop: PlanStop, date: string, moments: Moment[]): Moment | undefined {
+  return moments.find((m) => m.stopId === stop.id) ?? moments.find((m) => !m.stopId && m.date === date && m.place && m.place === stop.name)
+}
+
+/** A new record for a plan stop, holding the photos just picked. */
+export function momentFromStop(stop: PlanStop, date: string, photos: Photo[], where: { city: string; country: string }): Moment {
+  return {
+    id: newId(), tripId: TRIP_ID, date, time: stop.time || photos[0]?.taken.slice(11, 16) || '12:00',
+    place: stop.name, ...where, lat: stop.lat, lng: stop.lng,
+    rating: 0, caption: '', photoIds: photos.map((p) => p.id), stopId: stop.id,
+  }
 }

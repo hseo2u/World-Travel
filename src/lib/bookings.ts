@@ -4,9 +4,9 @@ import { TRANSPORT_LABEL } from './route'
 
 export const KIND_LABEL: Record<BookingKind, string> = {
   stay: '숙소',
-  flight: '항공',
-  transport: '교통',
-  activity: '투어·액티비티',
+  flight: '항공편',
+  transport: '교통편',
+  activity: '액티비티',
 }
 
 export const KIND_ICON: Record<BookingKind, string> = {
@@ -100,20 +100,19 @@ export interface Coverage {
   total: number
 }
 
-/** For stays the count is nights, so 3 of 42 nights booked reads correctly. */
+export const KIND_ORDER: BookingKind[] = ['transport', 'flight', 'stay', 'activity']
+
+/** Every kind, even empty ones. For stays the count is nights, so 3 of 42 nights booked reads correctly. */
 export function coverage(bookings: Booking[]): Coverage[] {
-  const kinds: BookingKind[] = ['stay', 'flight', 'transport', 'activity']
-  return kinds
-    .map((kind) => {
-      const items = bookings.filter((b) => b.kind === kind && b.status !== 'skipped')
-      const weight = (b: Booking) => (kind === 'stay' ? b.nights ?? 1 : 1)
-      return {
-        kind,
-        done: items.filter((b) => b.status === 'booked').reduce((n, b) => n + weight(b), 0),
-        total: items.reduce((n, b) => n + weight(b), 0),
-      }
-    })
-    .filter((c) => c.total > 0)
+  return KIND_ORDER.map((kind) => {
+    const items = bookings.filter((b) => b.kind === kind && b.status !== 'skipped')
+    const weight = (b: Booking) => (kind === 'stay' ? b.nights ?? 1 : 1)
+    return {
+      kind,
+      done: items.filter((b) => b.status === 'booked').reduce((n, b) => n + weight(b), 0),
+      total: items.reduce((n, b) => n + weight(b), 0),
+    }
+  })
 }
 
 /** Not yet booked and due within `withinDays` (overdue first). */

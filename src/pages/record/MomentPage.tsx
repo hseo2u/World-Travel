@@ -9,6 +9,7 @@ import { savePhotos } from '../../lib/photos'
 import { whereOn } from '../../lib/records'
 import { useTrip } from '../../lib/useTrip'
 import type { Day, Moment, Trip } from '../../types'
+import { useLeaveGuard } from '../../components/useLeaveGuard'
 
 function nowTime(): string {
   return new Date().toTimeString().slice(0, 5)
@@ -20,7 +21,9 @@ export default function MomentPage() {
   const [params] = useSearchParams()
   const { trip, days, loading } = useTrip()
   const stored = useLiveQuery(async () => (momentId === 'new' ? null : ((await db.moments.get(momentId ?? '')) ?? null)), [momentId])
-  if (loading || !trip || stored === undefined) return null
+  const stopId = stored?.stopId ?? params.get('stop') ?? undefined
+  const stop = useLiveQuery(async () => (stopId ? ((await db.stops.get(stopId)) ?? null) : null), [stopId])
+  if (loading || !trip || stored === undefined || stop === undefined) return null
   if (momentId !== 'new' && !stored) return <div className="page"><p className="muted">이 기록을 찾을 수 없어요.</p></div>
 
   const date = params.get('date') ?? todayIso()
@@ -32,10 +35,13 @@ export default function MomentPage() {
     lat: lat ? Number(lat) : undefined, lng: lng ? Number(lng) : undefined,
     rating: 0, caption: '', photoIds: [],
   }
-  return <Editor key={initial.id} initial={initial} isNew={!stored} trip={trip} days={days} />
+  if (!stored && stop) Object.assign(initial, { place: stop.name, lat: stop.lat, lng: stop.lng, stopId: stop.id })
+  // A record kept on a plan stop goes back to that day of the plan.
+  const backTo = stop ? `/plan/${stop.dayId}` : undefined
+  return <Editor key={initial.id} initial={initial} isNew={!stored} trip={trip} days={days} backTo={backTo} />
 }
 
-function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolean; trip: Trip; days: Day[] }) {
+function Editor({ initial, isNew, trip, days, backTo }: { initial: Moment; isNew: boolean; trip: Trip; days: Day[]; backTo?: string }) {
   const navigate = useNavigate()
   const [m, setM] = useState(initial)
   const [query, setQuery] = useState('')
@@ -46,7 +52,12 @@ function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolea
   const [added, setAdded] = useState<string[]>([])
   const set = (patch: Partial<Moment>) => setM({ ...m, ...patch })
   const cities = [...new Set(days.flatMap((d) => d.cities))]
-  const back = () => navigate(`/record/day/${m.date}`)
+  const back = () => navigate(backTo ?? `/record/day/${m.date}`)
+  const leave = useLeaveGuard(JSON.stringify(m) !== JSON.stringify(initial), () => db.photos.bulkDelete(added))
+  const done = () => {
+    leave.release()
+    back()
+  }
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length) return
@@ -100,13 +111,11 @@ function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolea
       await db.moments.put({ ...m, place: m.place.trim() })
       await db.photos.bulkDelete(removed)
     })
-    back()
+    done()
   }
 
-  async function cancel() {
-    await db.photos.bulkDelete(added)
-    back()
-  }
+  // Leaving with changes asks first, and drops the photos added here.
+  const cancel = back
 
   async function remove() {
     if (!confirmDelete) return setConfirmDelete(true)
@@ -114,11 +123,12 @@ function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolea
       await db.moments.delete(m.id)
       await db.photos.bulkDelete([...new Set([...initial.photoIds, ...added])])
     })
-    back()
+    done()
   }
 
   return (
     <div className="page record">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={cancel} aria-label="닫기">✕</button>
         <h1>{isNew ? '새 기록' : m.place || '그날 사진'}</h1>
@@ -138,24 +148,28 @@ function Editor({ initial, isNew, trip, days }: { initial: Moment; isNew: boolea
         </label>
       </div>
 
-      <section className="card">
-        <label className="field">
-          <span>장소</span>
-          <input id="m-place" value={m.place} onChange={(e) => set({ place: e.target.value })} placeholder="비워두면 그날 사진으로 들어가요" />
-        </label>
-        <div className="inline-form">
-          <input id="m-search" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder={`${m.city || '도시'}에서 장소 검색`} />
-          <button className="btn" onClick={search}>검색</button>
-        </div>
-        {status && <p className="muted">{status}</p>}
-        {hits.length > 0 && (
-          <ul className="plain-list hit-list">
-            {hits.map((h) => (
-              <li key={`${h.name}${h.lat}`}><button className="hit" onClick={() => pick(h)}><strong>{h.name}</strong>{h.kind && <span className="muted"> {h.kind}</span>}</button></li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {m.stopId ? (
+        <p className="muted">계획의 장소 <strong>{m.place}</strong>에 남기는 기록이에요.</p>
+      ) : (
+        <section className="card">
+          <label className="field">
+            <span>장소</span>
+            <input id="m-place" value={m.place} onChange={(e) => set({ place: e.target.value })} placeholder="비워두면 그날 사진으로 들어가요" />
+          </label>
+          <div className="inline-form">
+            <input id="m-search" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder={`${m.city || '도시'}에서 장소 검색`} />
+            <button className="btn" onClick={search}>검색</button>
+          </div>
+          {status && <p className="muted">{status}</p>}
+          {hits.length > 0 && (
+            <ul className="plain-list hit-list">
+              {hits.map((h) => (
+                <li key={`${h.name}${h.lat}`}><button className="hit" onClick={() => pick(h)}><strong>{h.name}</strong>{h.kind && <span className="muted"> {h.kind}</span>}</button></li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <div className="field">
         <span>별점</span>

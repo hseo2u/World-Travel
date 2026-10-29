@@ -24,3 +24,20 @@ export function todayIso(now = new Date()): string {
 export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 }
+
+/** "YYYY-MM" moved by `n` months. */
+export function shiftMonth(ym: string, n: number): string {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(Date.UTC(y, m - 1 + n, 1))
+  return d.toISOString().slice(0, 7)
+}
+
+/** The month's dates laid out Sunday-first, with null for the blanks before and after. */
+export function monthCells(ym: string): (string | null)[] {
+  const first = new Date(`${ym}-01T00:00:00Z`)
+  const count = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
+  const cells: (string | null)[] = Array(first.getUTCDay()).fill(null)
+  for (let i = 1; i <= count; i++) cells.push(`${ym}-${String(i).padStart(2, '0')}`)
+  while (cells.length % 7) cells.push(null)
+  return cells
+}

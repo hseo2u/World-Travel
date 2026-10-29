@@ -1,23 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import * as maplibregl from 'maplibre-gl'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import mapWorkerUrl from '../platform/mapWorker'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { useTrip } from '../lib/useTrip'
 import { buildRoute, TRANSPORT_LABEL, type Leg, type Stop } from '../lib/route'
 import { builtinPlace, cityKey, continentOf, geocode } from '../lib/geo'
+import { addPin, declutter, maplibregl, openMap, pinElement } from '../lib/mapbase'
+import PlacesMap from '../components/PlacesMap'
 import type { Place, Transport } from '../types'
-
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
-
-maplibregl.setWorkerUrl(mapWorkerUrl)
-
-const OFFLINE_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {},
-  layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#dfe9ee' } }],
-}
 
 type Scale = 'continent' | 'country' | 'city'
 
@@ -33,6 +23,19 @@ const MODE_COLOR: Record<Transport, string> = {
 }
 
 export default function MapPage() {
+  const [params, setParams] = useSearchParams()
+  const view = params.get('view') === 'places' ? 'places' : 'route'
+  const tabs = (
+    <div className="seg" role="tablist">
+      <button role="tab" aria-selected={view === 'route'} className={view === 'route' ? 'on' : ''} onClick={() => setParams({}, { replace: true })}>동선</button>
+      <button role="tab" aria-selected={view === 'places'} className={view === 'places' ? 'on' : ''} onClick={() => setParams({ view: 'places' }, { replace: true })}>내 장소</button>
+    </div>
+  )
+  if (view === 'places') return <PlacesMap tabs={tabs} only={params.get('only') === 'record' ? 'record' : 'all'} />
+  return <RouteMap tabs={tabs} />
+}
+
+function RouteMap({ tabs }: { tabs: ReactNode }) {
   const { days } = useTrip()
   const saved = useLiveQuery(() => db.places.toArray(), [])
   const { stops, legs } = useMemo(() => buildRoute(days), [days])
@@ -65,10 +68,9 @@ export default function MapPage() {
 
   useEffect(() => {
     if (!box.current) return
-    const m = new maplibregl.Map({ container: box.current, style: STYLE_URL, center: [-40, -10], zoom: 1.5 })
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
-    const addLayers = () => {
-      if (m.getSource('legs')) return
+    let current: maplibregl.Map | null = null
+    const close = openMap(box.current, (m) => {
+      current = m
       m.addSource('legs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
       m.addLayer({
         id: 'legs', type: 'line', source: 'legs', filter: ['!=', ['get', 'mode'], 'flight'],
@@ -79,24 +81,12 @@ export default function MapPage() {
         id: 'legs-flight', type: 'line', source: 'legs', filter: ['==', ['get', 'mode'], 'flight'],
         paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-dasharray': [2, 2] },
       })
+      map.current = m
       setStyleVersion((v) => v + 1)
-    }
-    m.on('style.load', addLayers)
-    // With no network and no cached tiles, fall back to a plain background so the route still shows.
-    const fallback = setTimeout(() => {
-      if (!m.isStyleLoaded()) m.setStyle(OFFLINE_STYLE)
-    }, 6000)
-    m.on('error', () => {
-      if (!m.isStyleLoaded()) {
-        clearTimeout(fallback)
-        m.setStyle(OFFLINE_STYLE)
-      }
     })
-    map.current = m
     return () => {
-      clearTimeout(fallback)
-      m.remove()
-      map.current = null
+      close()
+      if (map.current === current) map.current = null
     }
   }, [])
 
@@ -118,7 +108,7 @@ export default function MapPage() {
     markers.current.forEach((mk) => mk.remove())
     const seen = new Set<string>()
     const bounds = new maplibregl.LngLatBounds()
-    markers.current = []
+    const pins: { mk: maplibregl.Marker; nights: number }[] = []
     for (const s of visibleStops) {
       const p = placeOf(s)
       if (!p) continue
@@ -126,21 +116,17 @@ export default function MapPage() {
       if (seen.has(p.key)) continue
       seen.add(p.key)
       const nights = stops.filter((o) => cityKey(o.city) === p.key).reduce((n, o) => n + o.dayOrders.length, 0)
-      // On the continent view names would pile up, so cities are dots that show their name on tap.
-      const dot = scale === 'continent'
-      const el = document.createElement('div')
-      el.className = dot ? 'map-dot' : 'map-pin'
-      if (!dot) el.textContent = s.city
-      const marker = new maplibregl.Marker({ element: el, anchor: dot ? 'center' : 'bottom' })
-        .setLngLat([p.lng, p.lat])
-        .setPopup(new maplibregl.Popup({ offset: 12, closeButton: false }).setText(`${s.city} · ${nights}일`))
-        .addTo(m)
-      markers.current.push(marker)
+      pins.push({ mk: addPin(m, [p.lng, p.lat], pinElement(s.city, 'city'), `${s.city} · ${nights}일`), nights })
     }
+    // Where names collide, the city with the longer stay keeps its name.
+    pins.sort((a, b) => b.nights - a.nights)
+    markers.current = pins.map((p) => p.mk)
+    const stopDeclutter = declutter(m, () => markers.current.map((mk) => mk.getElement()))
     if (!bounds.isEmpty()) {
       if (scale === 'city') m.flyTo({ center: bounds.getCenter(), zoom: 11 })
-      else m.fitBounds(bounds, { padding: { top: 110, bottom: 96, left: 40, right: 40 }, maxZoom: 9, duration: 600 })
+      else m.fitBounds(bounds, { padding: { top: 60, bottom: 80, left: 30, right: 90 }, maxZoom: 9, duration: 600 })
     }
+    return stopDeclutter
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleVersion, scale, current, days, saved])
 
@@ -161,6 +147,7 @@ export default function MapPage() {
   return (
     <div className="map-page">
       <div className="map-controls">
+        {tabs}
         <div className="chips">
           {(['continent', 'country', 'city'] as Scale[]).map((s) => (
             <button key={s} className={s === scale ? 'chip active' : 'chip'} onClick={() => { setScale(s); setPick('') }}>

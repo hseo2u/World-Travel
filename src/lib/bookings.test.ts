@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Booking, Day, Trip } from '../types'
 import { coverage, dueSoon, plannedBookings, syncBookings } from './bookings'
 import { alignFlight, matchFlightDay } from './flightAlign'
-import { cashBalances, rateFromExchange, summarize } from './money'
+import { cashBalances, rateFromExchange, summarize, WALLET_CASH, withWallet } from './money'
 
 const trip: Trip = { id: 'main', name: 't', startDate: '2027-01-12', budgetKrw: 15_000_000, mode: 'solo' }
 
@@ -67,8 +67,13 @@ describe('coverage and dueSoon', () => {
     { ...base, id: '3', kind: 'stay', title: 'c', status: 'skipped', nights: 5 },
     { ...base, id: '4', kind: 'flight', title: 'd', status: 'needed', dueDate: '2026-12-30' },
   ]
-  it('counts stay nights, ignoring skipped', () => {
-    expect(coverage(items)).toEqual([{ kind: 'stay', done: 3, total: 5 }, { kind: 'flight', done: 0, total: 1 }])
+  it('counts stay nights, ignoring skipped, and keeps empty kinds', () => {
+    expect(coverage(items)).toEqual([
+      { kind: 'transport', done: 0, total: 0 },
+      { kind: 'flight', done: 0, total: 1 },
+      { kind: 'stay', done: 3, total: 5 },
+      { kind: 'activity', done: 0, total: 0 },
+    ])
   })
   it('lists overdue and upcoming unbooked items', () => {
     expect(dueSoon(items, '2026-10-26').map((b) => b.id)).toEqual(['2'])
@@ -114,6 +119,26 @@ describe('money', () => {
     const b = cashBalances(ex, spent, methods)
     expect(b.get('PEN')).toBe(700)
     expect(b.get('USD')).toBe(-200)
+  })
+
+  it('starts from the counted wallet and only moves with later records', () => {
+    const methods = [{ id: 'cash', name: '현금', kind: 'cash' as const }]
+    const ex = [{ id: 'e', tripId: 'main', date: '', fromCurrency: 'USD', fromAmount: 200, toCurrency: 'PEN', toAmount: 740, place: '' }]
+    // Counted 1,500 USD while records said -200: later exchanges then subtract from 1,500.
+    const counts = [
+      { id: 'c0', tripId: 'main', date: '2027-01-10', currency: 'USD', amount: 900, flowAt: 0, at: 1 },
+      { id: 'c1', tripId: 'main', date: '2027-01-11', currency: 'USD', amount: 1500, flowAt: 0, at: 2 },
+    ]
+    const later = [...ex, { ...ex[0], id: 'f', fromAmount: 100, toAmount: 370 }]
+    expect(cashBalances(ex, [], methods, [{ ...counts[1], flowAt: -200 }]).get('USD')).toBe(1500)
+    expect(cashBalances(later, [], methods, [counts[0], { ...counts[1], flowAt: -200 }]).get('USD')).toBe(1400)
+    expect(cashBalances(later, [], methods, []).has('KRW')).toBe(false)
+  })
+
+  it('takes cash spending out of the counted wallet even with no cash method added', () => {
+    const count = { id: 'c', tripId: 'main', date: '2027-01-12', currency: 'USD', amount: 1500, flowAt: 0, at: 1 }
+    const spent = [{ id: 'x', tripId: 'main', date: '2027-01-12', amount: 30, currency: 'USD', krw: 0, category: 'food' as const, payMethodId: WALLET_CASH.id, memo: '' }]
+    expect(cashBalances([], spent, withWallet([]), [count]).get('USD')).toBe(1470)
   })
 
   it('splits spending before and during the trip', () => {

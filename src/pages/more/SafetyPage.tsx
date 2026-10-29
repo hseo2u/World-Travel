@@ -5,6 +5,7 @@ import { db } from '../../db'
 import { useDraft } from '../../lib/useDraft'
 import { useKv } from '../../lib/useKv'
 import { useTrip } from '../../lib/useTrip'
+import { useLeaveGuard } from '../../components/useLeaveGuard'
 
 const FIELDS: [string, string, string][] = [
   ['insurer', '보험사', 'DB손해보험 해외여행자보험'],
@@ -22,10 +23,12 @@ export default function SafetyPage() {
   const saved = useKv('safety')
   const { draft: card = {}, set: patch, dirty } = useDraft(saved, 'safety')
   const set = (key: string, v: string) => patch({ [key]: v })
+  const leave = useLeaveGuard(dirty)
   if (loading || !trip) return null
 
   async function commit() {
     await db.kv.put({ key: 'safety', value: card })
+    leave.release()
     navigate('/more')
   }
 
@@ -36,6 +39,7 @@ export default function SafetyPage() {
 
   return (
     <div className="page">
+      {leave.sheet}
       <header className="page-head">
         <button className="icon-btn" onClick={() => navigate('/more')} aria-label="뒤로">←</button>
         <h1>안전카드</h1>

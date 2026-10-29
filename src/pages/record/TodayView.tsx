@@ -8,7 +8,6 @@ import { savePhotos } from '../../lib/photos'
 import { dayForDate, fileIntoAlbums, whereOn } from '../../lib/records'
 import { useTrip } from '../../lib/useTrip'
 import { useStops } from '../../lib/useStops'
-import { STOP_KIND_ICON } from '../../lib/stops'
 import { newMomentLink, useMoments } from '../../lib/useRecords'
 import { Stars, ZoomBar } from './shared'
 
@@ -38,7 +37,7 @@ export default function TodayView() {
   const album = list.find((m) => !m.place)
   const photoCount = list.reduce((n, m) => n + m.photoIds.length, 0)
   // Planned stops not recorded yet, one tap away from a record.
-  const toRecord = planned.filter((st) => st.kind !== 'move' && !places.some((m) => m.place === st.name))
+  const toRecord = planned.filter((st) => st.kind !== 'move' && !places.some((m) => m.stopId === st.id || m.place === st.name))
 
   async function findNearby() {
     setFinding('위치를 찾는 중…')
@@ -91,17 +90,11 @@ export default function TodayView() {
         </section>
       )}
 
-      {toRecord.length > 0 && (
-        <section className="planned">
-          <div className="nearby-title">계획한 곳 · 다녀오면 눌러서 기록해요</div>
-          <div className="chips">
-            {toRecord.map((st) => (
-              <Link key={st.id} className="chip" to={newMomentLink(date, st.lat !== undefined ? { name: st.name, kind: '', lat: st.lat, lng: st.lng! } : undefined, st.name)}>
-                {STOP_KIND_ICON[st.kind]} {st.name}
-              </Link>
-            ))}
-          </div>
-        </section>
+      {day && (
+        <Link to={`/plan/${day.id}`} className="card link-card plan-link">
+          <div className="eyebrow">계획에서 사진 넣기</div>
+          <span>{toRecord.length > 0 ? `계획한 ${toRecord.length}곳에 바로 사진을 넣을 수 있어요. 장소를 다시 적을 필요 없어요.` : 'Day ' + (day.order + 1) + ' 계획에서 장소마다 사진을 넣어요.'}</span>
+        </Link>
       )}
 
       {places.length > 0 && (
@@ -136,11 +129,11 @@ export default function TodayView() {
         </section>
       )}
 
-      {list.length === 0 && <p className="muted empty-note">아직 기록이 없어요. 간 곳을 추가하거나 사진만 올려도 돼요. 사진은 찍은 날짜에 맞춰 들어가요.</p>}
+      {list.length === 0 && <p className="muted empty-note">아직 기록이 없어요. 계획의 장소에 사진을 넣으면 여기에 모여요. 사진만 올려도 찍은 날짜에 맞춰 들어가요.</p>}
       {note && <p className="muted">{note}</p>}
 
       <div className="record-actions">
-        <Link to={newMomentLink(date)} className="btn primary">+ 장소 추가</Link>
+        <Link to={newMomentLink(date)} className="btn">계획에 없던 곳</Link>
         <label className="btn">
           사진만 올리기
           <input id="r-photos" type="file" accept="image/*" multiple hidden onChange={(e) => { void addPhotos(e.target.files); e.target.value = '' }} />
